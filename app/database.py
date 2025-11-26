@@ -12,39 +12,41 @@ load_dotenv()
 # Create declarative base for all models
 Base = declarative_base()
 
+# Lazy initialization - don't connect until needed
+_engine = None
+_SessionLocal = None
 
-def create_db_engine(database_url=None):
-    """
-    Create SQLAlchemy engine with connection pooling
-    
-    Args:
-        database_url: Optional database URL override
-        
-    Returns:
-        SQLAlchemy engine instance
-    """
-    if database_url is None:
-        database_url = os.getenv("DATABASE_URL")
-    
-    if not database_url:
+
+def get_database_url():
+    """Get database URL from environment."""
+    url = os.getenv("DATABASE_URL")
+    if not url:
         raise ValueError("DATABASE_URL environment variable not set")
-    
-    # Create engine with connection pooling settings
-    engine = create_engine(
-        database_url,
-        pool_size=5,               # Base connection pool size
-        max_overflow=10,           # Max additional connections
-        pool_pre_ping=True,        # Verify connections before use
-        pool_recycle=3600,         # Recycle connections after 1 hour
-        echo=os.getenv("FLASK_DEBUG", "False") == "True"  # SQL logging in debug mode
-    )
-    
-    return engine
+    return url
 
 
-# Create default engine and session factory
-engine = create_db_engine()
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+def get_engine():
+    """Get or create database engine (lazy initialization)."""
+    global _engine
+    if _engine is None:
+        database_url = get_database_url()
+        _engine = create_engine(
+            database_url,
+            pool_size=5,
+            max_overflow=10,
+            pool_pre_ping=True,
+            pool_recycle=3600,
+            echo=os.getenv("FLASK_DEBUG", "False") == "True"
+        )
+    return _engine
+
+
+def SessionLocal():
+    """Get a new database session."""
+    global _SessionLocal
+    if _SessionLocal is None:
+        _SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=get_engine())
+    return _SessionLocal()
 
 
 def get_session():
@@ -64,4 +66,15 @@ def get_session():
         raise
     finally:
         session.close()
+
+
+# For backwards compatibility - but these are now lazy
+engine = property(lambda self: get_engine())
+
+
+def create_db_engine(database_url=None):
+    """Legacy function - use get_engine() instead."""
+    if database_url:
+        return create_engine(database_url, pool_pre_ping=True)
+    return get_engine()
 
