@@ -64,7 +64,6 @@ def search_articles(
                 type="neural",
                 use_autoprompt=True,
                 start_published_date=start_date,
-                category="news",  # Filter to news articles only (excludes org pages, product pages, etc.)
                 text={"max_characters": EXA_MAX_CHARACTERS}
             )
             

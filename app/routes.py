@@ -15,22 +15,13 @@ from uuid import UUID
 from flask import Blueprint, render_template, request, abort
 from werkzeug.exceptions import HTTPException
 
+from app.database import SessionLocal
+from app.models import Article, ArticleStatus, Feedback, FeedbackRating, Source, DeepDive
+
 logger = logging.getLogger(__name__)
 
 # Create blueprint
 main = Blueprint('main', __name__)
-
-
-def get_db_session():
-    """Lazily import database session to avoid startup crashes."""
-    from app.database import SessionLocal
-    return SessionLocal()
-
-
-def get_models():
-    """Lazily import models."""
-    from app.models import Article, ArticleStatus, Feedback, FeedbackRating, Source, DeepDive
-    return Article, ArticleStatus, Feedback, FeedbackRating, Source, DeepDive
 
 
 @main.route('/health')
@@ -47,37 +38,24 @@ def run_pipeline():
     """
     import subprocess
     import sys
-    import os
-    
-    # Get project root
-    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    script_path = os.path.join(project_root, 'scripts', 'run_daily_pipeline.py')
     
     try:
         result = subprocess.run(
-            [sys.executable, script_path],
+            [sys.executable, 'scripts/run_daily_pipeline.py'],
             capture_output=True,
             text=True,
-            timeout=600,  # 10 minute timeout
-            cwd=project_root,
-            env={**os.environ}
+            timeout=300  # 5 minute timeout
         )
         return {
             'status': 'completed',
-            'stdout': result.stdout[-4000:] if result.stdout else '',
-            'stderr': result.stderr[-2000:] if result.stderr else '',
+            'stdout': result.stdout[-2000:] if result.stdout else '',  # Last 2000 chars
+            'stderr': result.stderr[-1000:] if result.stderr else '',
             'return_code': result.returncode
         }
     except subprocess.TimeoutExpired:
-        return {'status': 'timeout', 'message': 'Pipeline took longer than 10 minutes'}, 504
+        return {'status': 'timeout', 'message': 'Pipeline took longer than 5 minutes'}, 504
     except Exception as e:
         return {'status': 'error', 'message': str(e)}, 500
-
-
-@main.route('/test')
-def test_route():
-    """Quick test to verify routes are working."""
-    return {'status': 'ok', 'message': 'Routes working!'}
 
 
 @main.route('/feedback/<article_id>/good')
@@ -87,7 +65,6 @@ def feedback_good(article_id: str):
     
     Creates Feedback record with rating="good" and updates Article status.
     """
-    Article, ArticleStatus, Feedback, FeedbackRating, Source, DeepDive = get_models()
     return _handle_feedback(article_id, FeedbackRating.GOOD, ArticleStatus.GOOD)
 
 
@@ -98,7 +75,6 @@ def feedback_no(article_id: str):
     
     Creates Feedback record with rating="no" and updates Article status to rejected.
     """
-    Article, ArticleStatus, Feedback, FeedbackRating, Source, DeepDive = get_models()
     return _handle_feedback(article_id, FeedbackRating.NO, ArticleStatus.REJECTED)
 
 
@@ -110,8 +86,7 @@ def feedback_why_not(article_id: str):
     GET: Shows form for text input
     POST: Creates Feedback record with rating="why_not" and notes
     """
-    Article, ArticleStatus, Feedback, FeedbackRating, Source, DeepDive = get_models()
-    session = get_db_session()
+    session = SessionLocal()
     
     try:
         # Validate article ID
@@ -178,7 +153,7 @@ def feedback_why_not(article_id: str):
         session.close()
 
 
-def _handle_feedback(article_id: str, rating, new_status):
+def _handle_feedback(article_id: str, rating: FeedbackRating, new_status: ArticleStatus):
     """
     Generic feedback handler for Good and No buttons.
     
@@ -190,8 +165,7 @@ def _handle_feedback(article_id: str, rating, new_status):
     Returns:
         Rendered confirmation template
     """
-    Article, ArticleStatus, Feedback, FeedbackRating, Source, DeepDive = get_models()
-    session = get_db_session()
+    session = SessionLocal()
     
     try:
         # Validate article ID

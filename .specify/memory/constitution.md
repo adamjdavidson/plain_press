@@ -90,18 +90,6 @@ Monthly operational costs MUST stay **under $50**. This constraint drives archit
 
 A **delayed email is acceptable**; a **lost email is not**. The system prioritizes durability and correctness over speed.
 
-### VII. Temporal Accuracy (NON-NEGOTIABLE)
-
-This is a **live production system** that runs daily. All date-dependent logic must use **current dates dynamically**.
-
-**Rules**:
-- Never hardcode years in search queries, filters, or any time-based logic
-- Search queries must dynamically calculate the current year at runtime
-- All development sessions must verify date references are current
-- Sources/queries in config files should NOT include year strings—year is injected at runtime
-
-**Rationale**: Hardcoded dates cause the system to search for stale content, resulting in low-quality or zero results. A news finder that searches for "2024" news in 2025 is fundamentally broken.
-
 **Rules**:
 - Daily job retries on failure (3 attempts with exponential backoff)
 - All state persisted to database before external actions (email, Google Docs)

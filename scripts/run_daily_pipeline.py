@@ -20,17 +20,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from dotenv import load_dotenv
 load_dotenv()
 
-# Force unbuffered output for Railway logs
-class FlushHandler(logging.StreamHandler):
-    def emit(self, record):
-        super().emit(record)
-        self.flush()
-
-handler = FlushHandler(sys.stdout)
-handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s: %(message)s'))
-logging.root.handlers = [handler]
-logging.root.setLevel(logging.INFO)
-
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s %(levelname)s %(name)s: %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 

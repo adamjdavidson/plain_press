@@ -229,19 +229,11 @@ def filter_all_articles(articles: list[dict]) -> tuple[list[dict], list[dict], d
     }
     
     # Process in batches
-    total_batches = (len(articles) + BATCH_SIZE - 1) // BATCH_SIZE
-    logger.info(f"Starting Claude filtering: {len(articles)} articles in {total_batches} batches")
-    
     for i in range(0, len(articles), BATCH_SIZE):
         batch = articles[i:i + BATCH_SIZE]
-        batch_num = i // BATCH_SIZE + 1
-        logger.info(f"[BATCH {batch_num}/{total_batches}] Processing {len(batch)} articles...")
+        logger.info(f"Filtering batch {i // BATCH_SIZE + 1}/{(len(articles) + BATCH_SIZE - 1) // BATCH_SIZE} ({len(batch)} articles)")
         
-        import time as _time
-        batch_start = _time.time()
         results = filter_article_batch(batch, system_prompt)
-        batch_time = _time.time() - batch_start
-        logger.info(f"[BATCH {batch_num}/{total_batches}] Complete in {batch_time:.1f}s - got {len(results)} results")
         
         # Merge results and categorize
         for j, article in enumerate(batch):

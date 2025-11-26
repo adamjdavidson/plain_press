@@ -60,49 +60,37 @@ def run_discovery_job() -> dict:
     
     try:
         # Step 1: Fetch RSS feeds
-        logger.info("=" * 40)
-        logger.info("STEP 1: Fetching RSS feeds...")
+        logger.info("Step 1: Fetching RSS feeds...")
         try:
             rss_articles, rss_stats = fetch_all_rss_sources()
             stats['rss_articles'] = rss_stats['articles_total']
             stats['rss_sources_succeeded'] = rss_stats['sources_succeeded']
             stats['rss_sources_failed'] = rss_stats['sources_failed']
-            logger.info(f"RSS complete: {stats['rss_articles']} articles from {stats['rss_sources_succeeded']} sources")
         except Exception as e:
             logger.error(f"RSS fetch failed: {e}")
             stats['errors'].append(f"RSS fetch: {e}")
             rss_articles = []
         
         # Step 2: Execute Exa searches
-        logger.info("=" * 40)
-        logger.info("STEP 2: Executing Exa searches...")
+        logger.info("Step 2: Executing Exa searches...")
         try:
             exa_articles, exa_stats = search_all_queries()
             stats['exa_articles'] = exa_stats['articles_total']
             stats['exa_queries_succeeded'] = exa_stats['queries_succeeded']
             stats['exa_queries_failed'] = exa_stats['queries_failed']
             stats['cost_estimate'] += exa_stats['cost_estimate']
-            logger.info(f"Exa complete: {stats['exa_articles']} articles from {stats['exa_queries_succeeded']} queries")
         except Exception as e:
             logger.error(f"Exa search failed: {e}")
             stats['errors'].append(f"Exa search: {e}")
             exa_articles = []
         
         # Step 3: Combine and deduplicate
-        logger.info("=" * 40)
-        logger.info("STEP 3: Deduplicating articles...")
+        logger.info("Step 3: Deduplicating articles...")
         all_articles = rss_articles + exa_articles
         stats['total_discovered'] = len(all_articles)
         
         unique_articles, duplicates = deduplicate_articles(all_articles)
         stats['duplicates_removed'] = duplicates
-        logger.info(f"Dedup complete: {len(unique_articles)} unique articles ({duplicates} duplicates removed)")
-        
-        # Limit to prevent extremely long runs (process max 150 articles)
-        MAX_ARTICLES_TO_FILTER = 150
-        if len(unique_articles) > MAX_ARTICLES_TO_FILTER:
-            logger.warning(f"Limiting from {len(unique_articles)} to {MAX_ARTICLES_TO_FILTER} articles to control runtime")
-            unique_articles = unique_articles[:MAX_ARTICLES_TO_FILTER]
         
         if not unique_articles:
             logger.warning("No articles to filter after deduplication")
@@ -110,23 +98,19 @@ def run_discovery_job() -> dict:
             return stats
         
         # Step 4: Filter through Claude Haiku
-        logger.info("=" * 40)
-        logger.info(f"STEP 4: Filtering {len(unique_articles)} articles through Claude Haiku...")
-        logger.info("This is the slow step - each batch takes 10-30 seconds")
+        logger.info("Step 4: Filtering through Claude Haiku...")
         try:
             kept_articles, discarded_articles, filter_stats = filter_all_articles(unique_articles)
             stats['total_filtered'] = filter_stats['total_evaluated']
             stats['total_kept'] = filter_stats['total_kept']
             stats['cost_estimate'] += filter_stats['cost_estimate']
-            logger.info(f"Filtering complete: {stats['total_kept']} kept, {filter_stats['total_discarded']} discarded")
         except Exception as e:
             logger.error(f"Claude filtering failed: {e}")
             stats['errors'].append(f"Claude filter: {e}")
             kept_articles = []
         
         # Step 5: Store candidates
-        logger.info("=" * 40)
-        logger.info("STEP 5: Storing candidates...")
+        logger.info("Step 5: Storing candidates...")
         if kept_articles:
             try:
                 stored_count = store_candidates(kept_articles)

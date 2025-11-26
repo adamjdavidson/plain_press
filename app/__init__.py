@@ -2,13 +2,19 @@
 Plain Press Finder Flask Application Factory
 """
 import os
-from flask import Flask, jsonify
+from flask import Flask
 from dotenv import load_dotenv
 
 
 def create_app(config=None):
     """
     Flask application factory
+    
+    Args:
+        config: Optional configuration dictionary
+        
+    Returns:
+        Flask application instance
     """
     # Load environment variables
     load_dotenv()
@@ -21,11 +27,6 @@ def create_app(config=None):
     # Load custom configuration
     if config:
         app.config.from_mapping(config)
-    
-    # Simple ping route (no dependencies)
-    @app.route('/ping')
-    def ping():
-        return jsonify({'status': 'pong'})
     
     # Register blueprints
     from app.routes import main
