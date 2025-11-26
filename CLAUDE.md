@@ -4,6 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Governance**: All development must align with `.specify/memory/constitution.md`. Key principles: Single-User Simplicity, Cost Discipline (<$50/month), Pragmatic Testing, Volume Over Precision.
 
+## ⚠️ DATE AWARENESS - CHECK EVERY SESSION
+
+**This is a live production system.** At the start of each session:
+1. Note today's date from the environment (currently November 2025)
+2. All search queries, date filters, and time-based logic must use the **current year**
+3. Never hardcode years like "2024" - use dynamic date calculation
+4. If you see outdated year references anywhere in the codebase, fix them immediately
+
 ## Project Overview
 
 Plain Press Finder is an automated system that discovers news articles suitable for Plain Press, an Amish newspaper. The system finds ~50 article candidates daily, filters them against editorial criteria, and presents them to the editor for review via email. Approved articles trigger deep-dive reports delivered via email and Google Docs.

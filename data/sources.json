@@ -56,84 +56,68 @@
     "notes": "UK-based, more thoughtful. Filter for political content."
   },
   {
-    "name": "Query: Animals Heartwarming",
+    "name": "Query: Odd News Wholesome",
     "type": "search_query",
-    "search_query": "unusual animal behavior heartwarming story 2024",
+    "search_query": "odd news wholesome heartwarming",
     "is_active": true,
     "trust_score": 0.5,
-    "notes": "Animals are most reliable category"
+    "notes": "Broad discovery - mirrors odd news RSS feeds"
   },
   {
-    "name": "Query: Animal Friendships",
+    "name": "Query: Local Heartwarming",
     "type": "search_query",
-    "search_query": "unlikely animal friendship dog cat farm 2024",
+    "search_query": "local news heartwarming surprise community",
     "is_active": true,
     "trust_score": 0.5,
-    "notes": "Unlikely friendships are highly engaging"
+    "notes": "Broad discovery - local interest stories"
   },
   {
-    "name": "Query: Community Helpers",
+    "name": "Query: Small Town Quirky",
     "type": "search_query",
-    "search_query": "community volunteers neighbors help build restore 2024",
+    "search_query": "small town news unusual quirky tradition",
     "is_active": true,
     "trust_score": 0.5,
-    "notes": "Community cooperation aligns with Amish values"
+    "notes": "Broad discovery - small-town life"
   },
   {
-    "name": "Query: Small Town Traditions",
+    "name": "Query: Animal Stories",
     "type": "search_query",
-    "search_query": "small town quirky tradition festival annual celebration 2024",
+    "search_query": "animal news funny heartwarming unusual",
     "is_active": true,
     "trust_score": 0.5,
-    "notes": "Small-town life resonates with readers"
+    "notes": "Broad discovery - animals most reliable category"
   },
   {
-    "name": "Query: Food Oddities",
+    "name": "Query: Food Bizarre",
     "type": "search_query",
-    "search_query": "unusual food product bizarre flavor combination launched 2024",
+    "search_query": "food news bizarre unusual weird",
     "is_active": true,
     "trust_score": 0.5,
-    "notes": "Food stories are universally relatable"
-  },
-  {
-    "name": "Query: Giant Vegetables",
-    "type": "search_query",
-    "search_query": "giant vegetable pumpkin world record harvest 2024",
-    "is_active": true,
-    "trust_score": 0.5,
-    "notes": "Produce records are acceptable (not human achievement)"
-  },
-  {
-    "name": "Query: Heritage Railway",
-    "type": "search_query",
-    "search_query": "heritage railway steam train volunteers restored 2024",
-    "is_active": true,
-    "trust_score": 0.5,
-    "notes": "Old technology + community effort"
-  },
-  {
-    "name": "Query: Covered Bridge",
-    "type": "search_query",
-    "search_query": "covered bridge festival celebration historic preservation 2024",
-    "is_active": true,
-    "trust_score": 0.6,
-    "notes": "Perfect Amish content - heritage and community"
+    "notes": "Broad discovery - food oddities"
   },
   {
     "name": "Query: Nature Wonder",
     "type": "search_query",
-    "search_query": "unusual natural phenomenon rare flower bloom migration 2024",
+    "search_query": "nature news rare phenomenon discovery amazing",
     "is_active": true,
     "trust_score": 0.5,
-    "notes": "Nature is God's creation, inspires wonder"
+    "notes": "Broad discovery - natural wonders"
   },
   {
-    "name": "Query: Farm Animal Rescue",
+    "name": "Query: Offbeat News",
     "type": "search_query",
-    "search_query": "farm animal rescue sanctuary heartwarming story 2024",
+    "search_query": "offbeat news strange surprising feel-good",
     "is_active": true,
     "trust_score": 0.5,
-    "notes": "Farm animals relatable, rescue without tragedy focus"
+    "notes": "Broad discovery - general offbeat content"
+  },
+  {
+    "name": "Query: Viral Wholesome",
+    "type": "search_query",
+    "search_query": "viral wholesome story uplifting news",
+    "is_active": true,
+    "trust_score": 0.5,
+    "notes": "Broad discovery - shareable positive stories"
   }
 ]
 
