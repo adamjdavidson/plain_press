@@ -76,7 +76,7 @@ def send_email(
     Send an email via SendGrid with retry logic.
     
     Args:
-        to_email: Recipient email address
+        to_email: Recipient email address (comma-separated for multiple)
         subject: Email subject line
         html_content: HTML body content
         from_email: Sender email (defaults to SENDGRID_FROM_EMAIL)
@@ -86,9 +86,13 @@ def send_email(
     """
     from_email = from_email or os.environ.get('SENDGRID_FROM_EMAIL', 'noreply@example.com')
     
+    # Support comma-separated emails
+    recipients = [email.strip() for email in to_email.split(',') if email.strip()]
+    to_emails = [To(email) for email in recipients]
+    
     message = Mail(
         from_email=From(from_email, 'Plain Press'),
-        to_emails=To(to_email),
+        to_emails=to_emails,
         subject=Subject(subject),
         html_content=HtmlContent(html_content)
     )
