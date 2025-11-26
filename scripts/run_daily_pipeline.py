@@ -1,18 +1,22 @@
 #!/usr/bin/env python
 """
-Daily Pipeline Runner
+Daily Pipeline Runner - Plain Press
 
 Runs the full daily workflow:
 1. Discover articles (RSS + Exa)
-2. Filter with Claude
+2. Filter with Claude (using structured outputs)
 3. Send email to editor
-
-Run via Railway cron at 8am EST daily.
 """
 
-import logging
 import sys
 import os
+
+# Force unbuffered output for Railway logs
+os.environ['PYTHONUNBUFFERED'] = '1'
+
+def log(msg):
+    """Print with immediate flush for Railway logs."""
+    print(msg, flush=True)
 
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -20,41 +24,39 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from dotenv import load_dotenv
 load_dotenv()
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s %(levelname)s %(name)s: %(message)s'
-)
-logger = logging.getLogger(__name__)
-
 
 def main():
-    logger.info("=" * 50)
-    logger.info("DAILY PIPELINE START")
-    logger.info("=" * 50)
+    log("=" * 50)
+    log("DAILY PIPELINE START")
+    log("=" * 50)
     
     # Step 1: Run discovery job
-    logger.info("\n[1/2] Running article discovery...")
+    log("[1/2] Running article discovery...")
     try:
         from scripts.daily_job import main as run_discovery
         run_discovery()
-        logger.info("Discovery complete")
+        log("Discovery complete")
     except Exception as e:
-        logger.error(f"Discovery failed: {e}")
+        log(f"ERROR - Discovery failed: {e}")
+        import traceback
+        traceback.print_exc()
         # Continue to email even if discovery fails - we might have pending articles
     
     # Step 2: Send daily email
-    logger.info("\n[2/2] Sending daily email...")
+    log("[2/2] Sending daily email...")
     try:
         from scripts.email_job import main as run_email
         run_email()
-        logger.info("Email complete")
+        log("Email complete")
     except Exception as e:
-        logger.error(f"Email failed: {e}")
+        log(f"ERROR - Email failed: {e}")
+        import traceback
+        traceback.print_exc()
         raise
     
-    logger.info("\n" + "=" * 50)
-    logger.info("DAILY PIPELINE COMPLETE")
-    logger.info("=" * 50)
+    log("=" * 50)
+    log("DAILY PIPELINE COMPLETE")
+    log("=" * 50)
 
 
 if __name__ == "__main__":
