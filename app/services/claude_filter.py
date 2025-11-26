@@ -1,7 +1,7 @@
 """
-Claude Haiku Filtering Service
+Claude Filtering Service with Structured Outputs
 
-Evaluates articles against FilterRules using Claude Haiku.
+Evaluates articles against FilterRules using Claude with guaranteed JSON output.
 Returns filter_score, summary, amish_angle, and filter_notes.
 """
 
@@ -19,20 +19,44 @@ from app.models import FilterRule, RuleType
 logger = logging.getLogger(__name__)
 
 # Configuration
-MODEL = "claude-3-haiku-20240307"
-MAX_TOKENS = 2048
+MODEL = "claude-sonnet-4-5"  # Supports structured outputs (Nov 2025)
+MAX_TOKENS = 4096
 TEMPERATURE = 0  # Deterministic for consistency
-BATCH_SIZE = int(os.environ.get('BATCH_SIZE', '15'))
+BATCH_SIZE = int(os.environ.get('BATCH_SIZE', '10'))
 FILTER_THRESHOLD = float(os.environ.get('FILTER_SCORE_THRESHOLD', '0.5'))
-MAX_RETRIES = 3
-RETRY_BASE_DELAY = 5.0  # seconds
+MAX_RETRIES = 2
+RETRY_BASE_DELAY = 2.0
 
-# Cost estimates (USD per 1M tokens)
-INPUT_COST_PER_M = 0.25
-OUTPUT_COST_PER_M = 1.25
+# Cost estimates (USD per 1M tokens) - Sonnet pricing
+INPUT_COST_PER_M = 3.0
+OUTPUT_COST_PER_M = 15.0
+
+# JSON Schema for structured output - guarantees valid JSON
+ARTICLE_RESULT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "results": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "index": {"type": "integer"},
+                    "filter_score": {"type": "number"},
+                    "summary": {"type": "string"},
+                    "amish_angle": {"type": "string"},
+                    "filter_notes": {"type": "string"}
+                },
+                "required": ["index", "filter_score", "summary", "amish_angle", "filter_notes"],
+                "additionalProperties": False
+            }
+        }
+    },
+    "required": ["results"],
+    "additionalProperties": False
+}
 
 
-SYSTEM_PROMPT_TEMPLATE = """You are an editorial filter for Amish News, a publication serving conservative Amish Christian readers. 
+SYSTEM_PROMPT_TEMPLATE = """You are an editorial filter for Plain Press, a publication serving conservative Amish Christian readers. 
 Your task is to evaluate article candidates for inclusion in the daily email digest.
 
 EDITORIAL GUIDELINES:
@@ -51,13 +75,12 @@ GOOD TOPICS (boost score):
 BORDERLINE (use judgment):
 {borderline_rules}
 
-For EACH article, provide a JSON response with:
+For EACH article, provide:
+- index: the article index from the input
 - filter_score: float 0.0-1.0 (1.0 = perfect fit, 0.0 = completely inappropriate)
 - summary: 2-3 sentence summary suitable for Amish readers (simple language, 8th grade level)
 - amish_angle: 1 sentence explaining why this story resonates with Amish values
-- filter_notes: brief explanation of scoring rationale, noting any rule violations
-
-Respond with ONLY a valid JSON array matching the input article order. No other text."""
+- filter_notes: brief explanation of scoring rationale"""
 
 
 def get_anthropic_client() -> Anthropic:
@@ -109,7 +132,9 @@ def build_system_prompt() -> str:
 
 def filter_article_batch(articles: list[dict], system_prompt: str) -> list[dict]:
     """
-    Filter a batch of articles through Claude Haiku.
+    Filter a batch of articles through Claude with structured outputs.
+    
+    Uses the structured outputs beta to guarantee valid JSON responses.
     
     Args:
         articles: List of article dicts with headline and content
@@ -133,35 +158,32 @@ def filter_article_batch(articles: list[dict], system_prompt: str) -> list[dict]
     
     for attempt in range(MAX_RETRIES):
         try:
-            response = client.messages.create(
+            # Use structured outputs beta for guaranteed valid JSON
+            response = client.beta.messages.create(
                 model=MODEL,
                 max_tokens=MAX_TOKENS,
                 temperature=TEMPERATURE,
+                betas=["structured-outputs-2025-11-13"],
                 system=system_prompt,
-                messages=[{"role": "user", "content": user_message}]
+                messages=[{"role": "user", "content": user_message}],
+                output_format={
+                    "type": "json_schema",
+                    "schema": ARTICLE_RESULT_SCHEMA
+                }
             )
             
-            # Extract text response
+            # Extract and parse response - guaranteed valid JSON
             response_text = response.content[0].text
-            
-            # Parse JSON response
-            results = json.loads(response_text)
+            parsed = json.loads(response_text)
+            results = parsed.get("results", [])
             
             # Log cost estimate
             input_tokens = response.usage.input_tokens
             output_tokens = response.usage.output_tokens
             cost = (input_tokens * INPUT_COST_PER_M / 1_000_000) + (output_tokens * OUTPUT_COST_PER_M / 1_000_000)
-            logger.debug(f"Claude batch: {len(articles)} articles, {input_tokens}+{output_tokens} tokens, ~${cost:.4f}")
+            logger.info(f"Claude batch: {len(articles)} articles, {input_tokens}+{output_tokens} tokens, ~${cost:.4f}")
             
             return results
-            
-        except json.JSONDecodeError as e:
-            logger.error(f"Claude response not valid JSON (attempt {attempt + 1}/{MAX_RETRIES}): {e}")
-            if attempt < MAX_RETRIES - 1:
-                time.sleep(RETRY_BASE_DELAY)
-            else:
-                # Return default scores on parse failure
-                return [{'filter_score': 0.0, 'summary': '', 'amish_angle': '', 'filter_notes': 'Failed to parse Claude response'} for _ in articles]
                 
         except Exception as e:
             error_str = str(e).lower()
@@ -178,7 +200,7 @@ def filter_article_batch(articles: list[dict], system_prompt: str) -> list[dict]
             if attempt < MAX_RETRIES - 1:
                 time.sleep(RETRY_BASE_DELAY * (2 ** attempt))
             else:
-                return [{'filter_score': 0.0, 'summary': '', 'amish_angle': '', 'filter_notes': f'Claude API error: {e}'} for _ in articles]
+                return [{'index': i, 'filter_score': 0.0, 'summary': '', 'amish_angle': '', 'filter_notes': f'Claude API error: {e}'} for i in range(len(articles))]
     
     return []
 
@@ -209,7 +231,7 @@ def filter_articles(articles: list[dict]) -> list[dict]:
 
 def filter_all_articles(articles: list[dict]) -> tuple[list[dict], list[dict], dict]:
     """
-    Filter all articles through Claude Haiku in batches.
+    Filter all articles through Claude with structured outputs in batches.
     
     Args:
         articles: List of article dicts
@@ -228,24 +250,30 @@ def filter_all_articles(articles: list[dict]) -> tuple[list[dict], list[dict], d
         'cost_estimate': 0.0,
     }
     
+    total_batches = (len(articles) + BATCH_SIZE - 1) // BATCH_SIZE
+    logger.info(f"Starting Claude filtering: {len(articles)} articles in {total_batches} batches (using structured outputs)")
+    
     # Process in batches
     for i in range(0, len(articles), BATCH_SIZE):
         batch = articles[i:i + BATCH_SIZE]
-        logger.info(f"Filtering batch {i // BATCH_SIZE + 1}/{(len(articles) + BATCH_SIZE - 1) // BATCH_SIZE} ({len(batch)} articles)")
+        batch_num = i // BATCH_SIZE + 1
+        logger.info(f"[BATCH {batch_num}/{total_batches}] Processing {len(batch)} articles...")
         
+        batch_start = time.time()
         results = filter_article_batch(batch, system_prompt)
+        batch_time = time.time() - batch_start
+        logger.info(f"[BATCH {batch_num}/{total_batches}] Complete in {batch_time:.1f}s")
+        
+        # Build index map from results
+        results_by_index = {r.get('index', idx): r for idx, r in enumerate(results)}
         
         # Merge results and categorize
         for j, article in enumerate(batch):
-            if j < len(results):
-                result = results[j]
-                article['filter_score'] = result.get('filter_score', 0.0)
-                article['summary'] = result.get('summary', '')
-                article['amish_angle'] = result.get('amish_angle', '')
-                article['filter_notes'] = result.get('filter_notes', '')
-            else:
-                article['filter_score'] = 0.0
-                article['filter_notes'] = 'No result from Claude'
+            result = results_by_index.get(j, {})
+            article['filter_score'] = result.get('filter_score', 0.0)
+            article['summary'] = result.get('summary', '')
+            article['amish_angle'] = result.get('amish_angle', '')
+            article['filter_notes'] = result.get('filter_notes', 'No result')
             
             # Apply threshold
             if article['filter_score'] >= FILTER_THRESHOLD:
@@ -255,9 +283,8 @@ def filter_all_articles(articles: list[dict]) -> tuple[list[dict], list[dict], d
                 discarded.append(article)
                 stats['total_discarded'] += 1
         
-        # Estimate cost (rough)
-        # ~500 input tokens per article, ~100 output tokens per article
-        batch_cost = len(batch) * (500 * INPUT_COST_PER_M / 1_000_000 + 100 * OUTPUT_COST_PER_M / 1_000_000)
+        # Sonnet pricing estimate
+        batch_cost = len(batch) * (500 * INPUT_COST_PER_M / 1_000_000 + 150 * OUTPUT_COST_PER_M / 1_000_000)
         stats['cost_estimate'] += batch_cost
     
     logger.info(f"Filtering complete: {stats['total_kept']} kept, {stats['total_discarded']} discarded (~${stats['cost_estimate']:.2f})")

@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+**CRITICAL: ALWAYS check the current date from user_info. NEVER assume old versions. ALWAYS use Context7 (mcp_context7_resolve-library-id and mcp_context7_get-library-docs) to look up current library versions before writing any code that uses external dependencies.**
+
 **Governance**: All development must align with `.specify/memory/constitution.md`. Key principles: Single-User Simplicity, Cost Discipline (<$50/month), Pragmatic Testing, Volume Over Precision.
 
 ## Project Overview
