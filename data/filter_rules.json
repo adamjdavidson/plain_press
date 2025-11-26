@@ -1,0 +1,171 @@
+[
+  {
+    "rule_type": "must_have",
+    "rule_text": "A surprising or unusual angle - not routine news like 'Mayor opens new park'",
+    "priority": 100,
+    "source": "original"
+  },
+  {
+    "rule_type": "must_have",
+    "rule_text": "Completely wholesome content - nothing that would embarrass a parent reading to children",
+    "priority": 100,
+    "source": "original"
+  },
+  {
+    "rule_type": "must_have",
+    "rule_text": "Simple, clear language understandable at 8th-grade reading level - no jargon or technical terms",
+    "priority": 90,
+    "source": "original"
+  },
+  {
+    "rule_type": "must_have",
+    "rule_text": "A delightful or charming quality that produces a smile, chuckle, or sense of wonder",
+    "priority": 90,
+    "source": "original"
+  },
+  {
+    "rule_type": "must_have",
+    "rule_text": "Connection to everyday life - relatable to people who farm, cook, build, raise families",
+    "priority": 80,
+    "source": "original"
+  },
+  {
+    "rule_type": "must_have",
+    "rule_text": "Emphasis on community, togetherness, simple pleasures, OR focus on animals/nature/products",
+    "priority": 80,
+    "source": "original"
+  },
+  {
+    "rule_type": "must_avoid",
+    "rule_text": "Sexual content, innuendo, dating apps, relationship drama, suggestive humor",
+    "priority": 100,
+    "source": "original"
+  },
+  {
+    "rule_type": "must_avoid",
+    "rule_text": "Modern technology: smartphones, AI, robots, social media (TikTok, Instagram), video games, streaming, electric vehicles",
+    "priority": 100,
+    "source": "original"
+  },
+  {
+    "rule_type": "must_avoid",
+    "rule_text": "Death, fatal accidents, tragedies, disasters, 'miraculous survival' stories",
+    "priority": 100,
+    "source": "original"
+  },
+  {
+    "rule_type": "must_avoid",
+    "rule_text": "Violence, crime, murders, assaults, robberies, 'justice served' stories",
+    "priority": 100,
+    "source": "original"
+  },
+  {
+    "rule_type": "must_avoid",
+    "rule_text": "Depressing or negative stories: economic doom, environmental collapse, 'world getting worse' narratives",
+    "priority": 90,
+    "source": "original"
+  },
+  {
+    "rule_type": "must_avoid",
+    "rule_text": "Political controversy: elections, politicians, policy debates, partisan content, culture war topics",
+    "priority": 100,
+    "source": "original"
+  },
+  {
+    "rule_type": "must_avoid",
+    "rule_text": "Religious controversy: debates between denominations, criticism of faith traditions, evangelism stories",
+    "priority": 90,
+    "source": "original"
+  },
+  {
+    "rule_type": "must_avoid",
+    "rule_text": "War, military, armed conflict: veterans stories, troops coming home, military technology, battles, WWII reunions",
+    "priority": 100,
+    "source": "original"
+  },
+  {
+    "rule_type": "must_avoid",
+    "rule_text": "Individual hero or record-breaking stories for humans: oldest person to climb mountain, teacher runs marathon, Guinness World Records, local man saves family",
+    "priority": 90,
+    "source": "original"
+  },
+  {
+    "rule_type": "must_avoid",
+    "rule_text": "Competitive sports or individual athletic achievement: player breaks scoring record, Olympics, professional sports highlights",
+    "priority": 80,
+    "source": "original"
+  },
+  {
+    "rule_type": "good_topic",
+    "rule_text": "Animals: unusual behavior, unlikely friendships, pets with quirky habits, farm animals doing charming things, wildlife encounters (non-threatening)",
+    "priority": 80,
+    "source": "original"
+  },
+  {
+    "rule_type": "good_topic",
+    "rule_text": "Food: bizarre flavor combinations, strange food products, food festivals, giant vegetables, unusual harvests, traditional recipes revived",
+    "priority": 70,
+    "source": "original"
+  },
+  {
+    "rule_type": "good_topic",
+    "rule_text": "Community efforts: towns working together, neighbors helping neighbors, barn raisings, volunteer projects where no single person is the star",
+    "priority": 80,
+    "source": "original"
+  },
+  {
+    "rule_type": "good_topic",
+    "rule_text": "Nature and weather: unusual weather phenomena, remarkable plants, seasonal phenomena, beautiful natural formations, animal migrations",
+    "priority": 70,
+    "source": "original"
+  },
+  {
+    "rule_type": "good_topic",
+    "rule_text": "Small-town life: quirky town traditions, local festivals, covered bridge celebrations, historical preservation, charming town characters",
+    "priority": 70,
+    "source": "original"
+  },
+  {
+    "rule_type": "good_topic",
+    "rule_text": "Oddities and quirky products: bizarre products, unusual discoveries, miniature things, giant things, things in wrong places, silly surveys",
+    "priority": 60,
+    "source": "original"
+  },
+  {
+    "rule_type": "borderline",
+    "rule_text": "Individual craftsmanship: blacksmith practicing 60 years - lean toward INCLUDE if the craft is the focus, not the person's fame",
+    "priority": 50,
+    "source": "original"
+  },
+  {
+    "rule_type": "borderline",
+    "rule_text": "Heritage railways and steam trains: generally SAFE, volunteer groups restoring engines have community angle, avoid stories focused on one charismatic restorer",
+    "priority": 50,
+    "source": "original"
+  },
+  {
+    "rule_type": "borderline",
+    "rule_text": "Historical anniversaries: 150-year-old bridge celebrated - generally SAFE, about heritage and craftsmanship",
+    "priority": 50,
+    "source": "original"
+  },
+  {
+    "rule_type": "borderline",
+    "rule_text": "Group sports: local community softball, children's field day - MAY BE ACCEPTABLE if emphasis is on togetherness, not winning",
+    "priority": 40,
+    "source": "original"
+  },
+  {
+    "rule_type": "borderline",
+    "rule_text": "Animal records: world's largest pumpkin, tallest horse, oldest tortoise - generally ACCEPTABLE (not human ego)",
+    "priority": 50,
+    "source": "original"
+  },
+  {
+    "rule_type": "borderline",
+    "rule_text": "Good news human interest: community rallying around sick child - USE CAUTION. If illness is focus, REJECT. If community response is focus and child recovering, might work.",
+    "priority": 40,
+    "source": "original"
+  }
+]
+

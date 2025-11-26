@@ -1,0 +1,139 @@
+[
+  {
+    "name": "UPI Odd News",
+    "type": "rss",
+    "url": "https://rss.upi.com/news/odd_news.rss",
+    "is_active": true,
+    "trust_score": 0.7,
+    "notes": "Wire service quality, wide variety of oddball stories"
+  },
+  {
+    "name": "AP Oddities",
+    "type": "rss",
+    "url": "https://rsshub.app/apnews/topics/oddities",
+    "is_active": true,
+    "trust_score": 0.7,
+    "notes": "Associated Press wire service, reliable fact-checked content"
+  },
+  {
+    "name": "Reuters Oddly Enough",
+    "type": "rss",
+    "url": "https://www.reutersagency.com/feed/?best-topics=oddly-enough&post_type=best",
+    "is_active": true,
+    "trust_score": 0.7,
+    "notes": "International wire service, more global flavor"
+  },
+  {
+    "name": "Good News Network",
+    "type": "rss",
+    "url": "https://www.goodnewsnetwork.org/feed/",
+    "is_active": true,
+    "trust_score": 0.6,
+    "notes": "Uplifting content but watch for hero stories"
+  },
+  {
+    "name": "Atlas Obscura",
+    "type": "rss",
+    "url": "https://www.atlasobscura.com/feeds/latest",
+    "is_active": true,
+    "trust_score": 0.6,
+    "notes": "Unusual places and discoveries, strong 'isn't that something' factor"
+  },
+  {
+    "name": "Sky News Offbeat",
+    "type": "rss",
+    "url": "https://feeds.skynews.com/feeds/rss/strange.xml",
+    "is_active": true,
+    "trust_score": 0.6,
+    "notes": "UK-focused, strong on animal stories"
+  },
+  {
+    "name": "Positive News",
+    "type": "rss",
+    "url": "https://www.positive.news/feed/",
+    "is_active": true,
+    "trust_score": 0.5,
+    "notes": "UK-based, more thoughtful. Filter for political content."
+  },
+  {
+    "name": "Query: Animals Heartwarming",
+    "type": "search_query",
+    "search_query": "unusual animal behavior heartwarming story 2024",
+    "is_active": true,
+    "trust_score": 0.5,
+    "notes": "Animals are most reliable category"
+  },
+  {
+    "name": "Query: Animal Friendships",
+    "type": "search_query",
+    "search_query": "unlikely animal friendship dog cat farm 2024",
+    "is_active": true,
+    "trust_score": 0.5,
+    "notes": "Unlikely friendships are highly engaging"
+  },
+  {
+    "name": "Query: Community Helpers",
+    "type": "search_query",
+    "search_query": "community volunteers neighbors help build restore 2024",
+    "is_active": true,
+    "trust_score": 0.5,
+    "notes": "Community cooperation aligns with Amish values"
+  },
+  {
+    "name": "Query: Small Town Traditions",
+    "type": "search_query",
+    "search_query": "small town quirky tradition festival annual celebration 2024",
+    "is_active": true,
+    "trust_score": 0.5,
+    "notes": "Small-town life resonates with readers"
+  },
+  {
+    "name": "Query: Food Oddities",
+    "type": "search_query",
+    "search_query": "unusual food product bizarre flavor combination launched 2024",
+    "is_active": true,
+    "trust_score": 0.5,
+    "notes": "Food stories are universally relatable"
+  },
+  {
+    "name": "Query: Giant Vegetables",
+    "type": "search_query",
+    "search_query": "giant vegetable pumpkin world record harvest 2024",
+    "is_active": true,
+    "trust_score": 0.5,
+    "notes": "Produce records are acceptable (not human achievement)"
+  },
+  {
+    "name": "Query: Heritage Railway",
+    "type": "search_query",
+    "search_query": "heritage railway steam train volunteers restored 2024",
+    "is_active": true,
+    "trust_score": 0.5,
+    "notes": "Old technology + community effort"
+  },
+  {
+    "name": "Query: Covered Bridge",
+    "type": "search_query",
+    "search_query": "covered bridge festival celebration historic preservation 2024",
+    "is_active": true,
+    "trust_score": 0.6,
+    "notes": "Perfect Amish content - heritage and community"
+  },
+  {
+    "name": "Query: Nature Wonder",
+    "type": "search_query",
+    "search_query": "unusual natural phenomenon rare flower bloom migration 2024",
+    "is_active": true,
+    "trust_score": 0.5,
+    "notes": "Nature is God's creation, inspires wonder"
+  },
+  {
+    "name": "Query: Farm Animal Rescue",
+    "type": "search_query",
+    "search_query": "farm animal rescue sanctuary heartwarming story 2024",
+    "is_active": true,
+    "trust_score": 0.5,
+    "notes": "Farm animals relatable, rescue without tragedy focus"
+  }
+]
+
