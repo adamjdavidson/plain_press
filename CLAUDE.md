@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Amish News Finder is an automated system that discovers news articles suitable for Plain News, an Amish newspaper. The system finds ~50 article candidates daily, filters them against editorial criteria, and presents them to the editor for review via email. Approved articles trigger deep-dive reports delivered via email and Google Docs.
+Plain Press Finder is an automated system that discovers news articles suitable for Plain Press, an Amish newspaper. The system finds ~50 article candidates daily, filters them against editorial criteria, and presents them to the editor for review via email. Approved articles trigger deep-dive reports delivered via email and Google Docs.
 
 **Single user**: John Lapp, the editor. No public interface.
 

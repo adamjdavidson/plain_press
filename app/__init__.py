@@ -1,5 +1,5 @@
 """
-Amish News Finder Flask Application Factory
+Plain Press Finder Flask Application Factory
 """
 import os
 from flask import Flask

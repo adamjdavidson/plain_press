@@ -29,7 +29,7 @@ MAX_RETRIES = 3
 GENERATION_TIMEOUT = 90  # seconds
 
 # Report prompt template
-REPORT_PROMPT = """You are helping write stories for Plain News, an Amish newspaper.
+REPORT_PROMPT = """You are helping write stories for Plain Press, an Amish newspaper.
 
 Given this article, create a deep-dive report with these sections:
 

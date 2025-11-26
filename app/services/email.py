@@ -87,7 +87,7 @@ def send_email(
     from_email = from_email or os.environ.get('SENDGRID_FROM_EMAIL', 'noreply@example.com')
     
     message = Mail(
-        from_email=From(from_email, 'Plain News Finder'),
+        from_email=From(from_email, 'Plain Press'),
         to_emails=To(to_email),
         subject=Subject(subject),
         html_content=HtmlContent(html_content)
@@ -311,7 +311,7 @@ def send_deep_dive_email(
     Returns:
         Tuple of (success, error_message)
     """
-    subject = f"Deep Dive: {headline[:60]}{'...' if len(headline) > 60 else ''} - Plain News"
+    subject = f"Deep Dive: {headline[:60]}{'...' if len(headline) > 60 else ''} - Plain Press"
     
     html_content = render_deep_dive_email(
         headline=headline,
@@ -371,7 +371,7 @@ def send_daily_candidates() -> dict:
         
         # Compose email
         date_str = datetime.now().strftime('%B %d, %Y')
-        subject = f"Plain News Candidates - {datetime.now().strftime('%b %d')} ({len(articles)} articles)"
+        subject = f"Plain Press Candidates - {datetime.now().strftime('%b %d')} ({len(articles)} articles)"
         html_content = render_email_html(articles, date_str)
         
         # Get recipient

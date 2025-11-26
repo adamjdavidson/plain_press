@@ -1,5 +1,5 @@
 """
-Flask Routes for Amish News Finder
+Flask Routes for Plain Press Finder
 
 Includes:
 - Feedback routes for Good/No/Why Not buttons
