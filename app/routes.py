@@ -30,6 +30,34 @@ def health_check():
     return {'status': 'healthy', 'timestamp': datetime.now(timezone.utc).isoformat()}
 
 
+@main.route('/run-pipeline')
+def run_pipeline():
+    """
+    Manually trigger the daily pipeline.
+    Visit: https://your-app.up.railway.app/run-pipeline
+    """
+    import subprocess
+    import sys
+    
+    try:
+        result = subprocess.run(
+            [sys.executable, 'scripts/run_daily_pipeline.py'],
+            capture_output=True,
+            text=True,
+            timeout=300  # 5 minute timeout
+        )
+        return {
+            'status': 'completed',
+            'stdout': result.stdout[-2000:] if result.stdout else '',  # Last 2000 chars
+            'stderr': result.stderr[-1000:] if result.stderr else '',
+            'return_code': result.returncode
+        }
+    except subprocess.TimeoutExpired:
+        return {'status': 'timeout', 'message': 'Pipeline took longer than 5 minutes'}, 504
+    except Exception as e:
+        return {'status': 'error', 'message': str(e)}, 500
+
+
 @main.route('/feedback/<article_id>/good')
 def feedback_good(article_id: str):
     """
