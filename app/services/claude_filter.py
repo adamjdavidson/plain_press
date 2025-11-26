@@ -8,6 +8,7 @@ Returns filter_score, summary, amish_angle, and filter_notes.
 import json
 import logging
 import os
+import sys
 import time
 from typing import Optional
 
@@ -17,6 +18,13 @@ from app.database import SessionLocal
 from app.models import FilterRule, RuleType
 
 logger = logging.getLogger(__name__)
+
+
+def _log_claude(msg: str):
+    """Log Claude progress with immediate flush."""
+    full_msg = f"CLAUDE: {msg}"
+    logger.info(full_msg)
+    print(full_msg, file=sys.stdout, flush=True)
 
 # Configuration
 MODEL = "claude-sonnet-4-5"  # Supports structured outputs (Nov 2025)
@@ -94,21 +102,24 @@ def get_anthropic_client() -> Anthropic:
 def build_system_prompt() -> str:
     """
     Build the system prompt with current FilterRules from database.
-    
+
     Returns:
         Formatted system prompt string
     """
+    _log_claude("Building system prompt - getting DB session...")
     session = SessionLocal()
+    _log_claude("DB session acquired, querying FilterRules...")
     
     try:
         rules = session.query(FilterRule).filter(FilterRule.is_active == True).all()
-        
+        _log_claude(f"Found {len(rules)} active FilterRules")
+
         # Group rules by type
         must_have = []
         must_avoid = []
         good_topics = []
         borderline = []
-        
+
         for rule in rules:
             if rule.rule_type == RuleType.MUST_HAVE:
                 must_have.append(f"- {rule.rule_text}")
@@ -133,18 +144,20 @@ def build_system_prompt() -> str:
 def filter_article_batch(articles: list[dict], system_prompt: str) -> list[dict]:
     """
     Filter a batch of articles through Claude with structured outputs.
-    
+
     Uses the structured outputs beta to guarantee valid JSON responses.
-    
+
     Args:
         articles: List of article dicts with headline and content
         system_prompt: Pre-built system prompt with FilterRules
-        
+
     Returns:
         List of filter result dicts with filter_score, summary, amish_angle, filter_notes
     """
+    _log_claude(f"Getting Anthropic client for batch of {len(articles)} articles...")
     client = get_anthropic_client()
-    
+    _log_claude("Anthropic client ready")
+
     # Prepare articles for prompt
     articles_for_prompt = []
     for i, article in enumerate(articles):
@@ -153,11 +166,13 @@ def filter_article_batch(articles: list[dict], system_prompt: str) -> list[dict]
             'headline': article.get('headline', ''),
             'content': article.get('content', '')[:1500],  # Truncate long content
         })
-    
+
     user_message = f"ARTICLES TO EVALUATE:\n{json.dumps(articles_for_prompt, indent=2)}"
-    
+
     for attempt in range(MAX_RETRIES):
         try:
+            _log_claude(f"Calling Claude API (attempt {attempt + 1}/{MAX_RETRIES})...")
+            api_start = time.time()
             # Use structured outputs beta for guaranteed valid JSON
             response = client.beta.messages.create(
                 model=MODEL,
@@ -171,18 +186,20 @@ def filter_article_batch(articles: list[dict], system_prompt: str) -> list[dict]
                     "schema": ARTICLE_RESULT_SCHEMA
                 }
             )
-            
+            api_time = time.time() - api_start
+            _log_claude(f"Claude API responded in {api_time:.1f}s")
+
             # Extract and parse response - guaranteed valid JSON
             response_text = response.content[0].text
             parsed = json.loads(response_text)
             results = parsed.get("results", [])
-            
+
             # Log cost estimate
             input_tokens = response.usage.input_tokens
             output_tokens = response.usage.output_tokens
             cost = (input_tokens * INPUT_COST_PER_M / 1_000_000) + (output_tokens * OUTPUT_COST_PER_M / 1_000_000)
-            logger.info(f"Claude batch: {len(articles)} articles, {input_tokens}+{output_tokens} tokens, ~${cost:.4f}")
-            
+            _log_claude(f"Batch complete: {len(articles)} articles, {input_tokens}+{output_tokens} tokens, ~${cost:.4f}")
+
             return results
                 
         except Exception as e:
@@ -232,15 +249,18 @@ def filter_articles(articles: list[dict]) -> list[dict]:
 def filter_all_articles(articles: list[dict]) -> tuple[list[dict], list[dict], dict]:
     """
     Filter all articles through Claude with structured outputs in batches.
-    
+
     Args:
         articles: List of article dicts
-        
+
     Returns:
         Tuple of (kept articles, discarded articles, stats dict)
     """
+    _log_claude(f"Starting filter_all_articles with {len(articles)} articles")
+    _log_claude("Building system prompt...")
     system_prompt = build_system_prompt()
-    
+    _log_claude("System prompt built")
+
     kept = []
     discarded = []
     stats = {
@@ -249,20 +269,20 @@ def filter_all_articles(articles: list[dict]) -> tuple[list[dict], list[dict], d
         'total_discarded': 0,
         'cost_estimate': 0.0,
     }
-    
+
     total_batches = (len(articles) + BATCH_SIZE - 1) // BATCH_SIZE
-    logger.info(f"Starting Claude filtering: {len(articles)} articles in {total_batches} batches (using structured outputs)")
-    
+    _log_claude(f"Will process {total_batches} batches of up to {BATCH_SIZE} articles each")
+
     # Process in batches
     for i in range(0, len(articles), BATCH_SIZE):
         batch = articles[i:i + BATCH_SIZE]
         batch_num = i // BATCH_SIZE + 1
-        logger.info(f"[BATCH {batch_num}/{total_batches}] Processing {len(batch)} articles...")
-        
+        _log_claude(f"[BATCH {batch_num}/{total_batches}] Starting {len(batch)} articles...")
+
         batch_start = time.time()
         results = filter_article_batch(batch, system_prompt)
         batch_time = time.time() - batch_start
-        logger.info(f"[BATCH {batch_num}/{total_batches}] Complete in {batch_time:.1f}s")
+        _log_claude(f"[BATCH {batch_num}/{total_batches}] Complete in {batch_time:.1f}s")
         
         # Build index map from results
         results_by_index = {r.get('index', idx): r for idx, r in enumerate(results)}

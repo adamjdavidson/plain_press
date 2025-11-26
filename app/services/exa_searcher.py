@@ -7,6 +7,7 @@ Handles rate limits with exponential backoff.
 
 import logging
 import os
+import sys
 import time
 from datetime import datetime, timezone, timedelta
 from typing import Optional
@@ -17,6 +18,13 @@ from app.database import SessionLocal
 from app.models import Source, SourceType
 
 logger = logging.getLogger(__name__)
+
+
+def _log_exa(msg: str):
+    """Log Exa progress with immediate flush."""
+    full_msg = f"EXA: {msg}"
+    logger.info(full_msg)
+    print(full_msg, file=sys.stdout, flush=True)
 
 # Configuration
 EXA_NUM_RESULTS = 15
@@ -41,23 +49,26 @@ def search_articles(
 ) -> list[dict]:
     """
     Search for articles using Exa API.
-    
+
     Args:
         query: Search query text
         num_results: Number of results to return
         days_back: Only include articles from last N days
-        
+
     Returns:
         List of article dicts with keys: headline, url, published_date, content
     """
     client = get_exa_client()
     articles = []
-    
+    short_query = query[:40] + "..." if len(query) > 40 else query
+
     # Calculate date filter
     start_date = (datetime.now(timezone.utc) - timedelta(days=days_back)).strftime('%Y-%m-%d')
-    
+
     for attempt in range(MAX_RETRIES):
         try:
+            _log_exa(f"Searching '{short_query}' (attempt {attempt + 1})...")
+            search_start = time.time()
             result = client.search_and_contents(
                 query=query,
                 num_results=num_results,
@@ -66,15 +77,16 @@ def search_articles(
                 start_published_date=start_date,
                 text={"max_characters": EXA_MAX_CHARACTERS}
             )
-            
+            search_time = time.time() - search_start
+            _log_exa(f"Search '{short_query}' complete in {search_time:.1f}s")
+
             # Parse results
             for item in result.results:
                 article = _parse_exa_result(item)
                 if article:
                     articles.append(article)
-            
-            # Log cost estimate
-            logger.info(f"Exa search '{query[:50]}...': {len(articles)} results (~${COST_PER_QUERY:.2f})")
+
+            _log_exa(f"Search '{short_query}': {len(articles)} results (~${COST_PER_QUERY:.2f})")
             return articles
             
         except Exception as e:
@@ -137,11 +149,13 @@ def _parse_exa_result(item) -> Optional[dict]:
 def search_all_queries() -> tuple[list[dict], dict]:
     """
     Execute all active Exa search queries.
-    
+
     Returns:
         Tuple of (articles list, stats dict with query results)
     """
+    _log_exa("Getting database session...")
     session = SessionLocal()
+    _log_exa("Database session acquired")
     all_articles = []
     stats = {
         'queries_total': 0,
@@ -150,18 +164,21 @@ def search_all_queries() -> tuple[list[dict], dict]:
         'articles_total': 0,
         'cost_estimate': 0.0,
     }
-    
+
     try:
         # Query active search query sources
+        _log_exa("Querying active Exa search sources from database...")
         sources = session.query(Source).filter(
             Source.type == SourceType.SEARCH_QUERY,
             Source.is_active == True
         ).all()
-        
+        _log_exa(f"Found {len(sources)} active Exa search queries")
+
         stats['queries_total'] = len(sources)
         logger.info(f"Executing {len(sources)} Exa search queries")
-        
-        for source in sources:
+
+        for idx, source in enumerate(sources):
+            _log_exa(f"[{idx + 1}/{len(sources)}] Processing query '{source.name}'...")
             if not source.search_query:
                 logger.warning(f"Source '{source.name}' has no search_query, skipping")
                 continue

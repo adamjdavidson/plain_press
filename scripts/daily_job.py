@@ -5,7 +5,7 @@ Daily Article Discovery Job
 Runs at 8am EST via Railway cron to:
 1. Fetch articles from RSS feeds
 2. Search articles via Exa API
-3. Filter through Claude Haiku
+3. Filter through Claude Sonnet 4.5 (structured outputs)
 4. Store candidates in database
 
 Usage:

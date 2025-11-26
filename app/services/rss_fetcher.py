@@ -6,6 +6,7 @@ Handles errors gracefully, updates source metrics.
 """
 
 import logging
+import sys
 import time
 from datetime import datetime, timezone
 from typing import Optional
@@ -17,6 +18,13 @@ from app.models import Source, SourceType
 
 logger = logging.getLogger(__name__)
 
+
+def _log_rss(msg: str):
+    """Log RSS progress with immediate flush."""
+    full_msg = f"RSS: {msg}"
+    logger.info(full_msg)
+    print(full_msg, file=sys.stdout, flush=True)
+
 # Configuration
 RSS_FETCH_TIMEOUT = 30  # seconds
 RSS_FETCH_DELAY = 1.0   # seconds between fetches
@@ -27,20 +35,25 @@ RETRY_BASE_DELAY = 2.0  # seconds
 def fetch_rss_feed(url: str, timeout: int = RSS_FETCH_TIMEOUT) -> list[dict]:
     """
     Fetch and parse a single RSS feed.
-    
+
     Args:
         url: RSS feed URL
         timeout: Request timeout in seconds
-        
+
     Returns:
         List of article dicts with keys: headline, url, published_date, content, source_url
     """
     articles = []
-    
+    short_url = url[:60] + "..." if len(url) > 60 else url
+
     for attempt in range(MAX_RETRIES):
         try:
+            _log_rss(f"Fetching {short_url} (attempt {attempt + 1})...")
+            fetch_start = time.time()
             # feedparser handles most edge cases gracefully
             result = feedparser.parse(url, request_headers={'User-Agent': 'AmishNewsFinder/1.0'})
+            fetch_time = time.time() - fetch_start
+            _log_rss(f"Fetched {short_url} in {fetch_time:.1f}s")
             
             # Helper to get value from dict or object
             def get_val(obj, key, default=None):
@@ -140,11 +153,13 @@ def _parse_entry(entry: dict, source_url: str) -> Optional[dict]:
 def fetch_all_rss_sources() -> tuple[list[dict], dict]:
     """
     Fetch articles from all active RSS sources.
-    
+
     Returns:
         Tuple of (articles list, stats dict with source results)
     """
+    _log_rss("Getting database session...")
     session = SessionLocal()
+    _log_rss("Database session acquired")
     all_articles = []
     stats = {
         'sources_total': 0,
@@ -152,18 +167,21 @@ def fetch_all_rss_sources() -> tuple[list[dict], dict]:
         'sources_failed': 0,
         'articles_total': 0,
     }
-    
+
     try:
         # Query active RSS sources
+        _log_rss("Querying active RSS sources from database...")
         sources = session.query(Source).filter(
             Source.type == SourceType.RSS,
             Source.is_active == True
         ).all()
-        
+        _log_rss(f"Found {len(sources)} active RSS sources")
+
         stats['sources_total'] = len(sources)
         logger.info(f"Fetching from {len(sources)} RSS sources")
-        
-        for source in sources:
+
+        for idx, source in enumerate(sources):
+            _log_rss(f"[{idx + 1}/{len(sources)}] Processing source '{source.name}'...")
             try:
                 articles = fetch_rss_feed(source.url)
                 
