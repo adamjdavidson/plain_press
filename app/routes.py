@@ -38,24 +38,37 @@ def run_pipeline():
     """
     import subprocess
     import sys
+    import os
+    
+    # Get project root
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    script_path = os.path.join(project_root, 'scripts', 'run_daily_pipeline.py')
     
     try:
         result = subprocess.run(
-            [sys.executable, 'scripts/run_daily_pipeline.py'],
+            [sys.executable, script_path],
             capture_output=True,
             text=True,
-            timeout=300  # 5 minute timeout
+            timeout=600,  # 10 minute timeout
+            cwd=project_root,
+            env={**os.environ}
         )
         return {
             'status': 'completed',
-            'stdout': result.stdout[-2000:] if result.stdout else '',  # Last 2000 chars
-            'stderr': result.stderr[-1000:] if result.stderr else '',
+            'stdout': result.stdout[-4000:] if result.stdout else '',
+            'stderr': result.stderr[-2000:] if result.stderr else '',
             'return_code': result.returncode
         }
     except subprocess.TimeoutExpired:
-        return {'status': 'timeout', 'message': 'Pipeline took longer than 5 minutes'}, 504
+        return {'status': 'timeout', 'message': 'Pipeline took longer than 10 minutes'}, 504
     except Exception as e:
         return {'status': 'error', 'message': str(e)}, 500
+
+
+@main.route('/test')
+def test_route():
+    """Quick test to verify routes are working."""
+    return {'status': 'ok', 'message': 'Routes working!'}
 
 
 @main.route('/feedback/<article_id>/good')
