@@ -15,13 +15,22 @@ from uuid import UUID
 from flask import Blueprint, render_template, request, abort
 from werkzeug.exceptions import HTTPException
 
-from app.database import SessionLocal
-from app.models import Article, ArticleStatus, Feedback, FeedbackRating, Source, DeepDive
-
 logger = logging.getLogger(__name__)
 
 # Create blueprint
 main = Blueprint('main', __name__)
+
+
+def get_db_session():
+    """Lazily import database session to avoid startup crashes."""
+    from app.database import SessionLocal
+    return SessionLocal()
+
+
+def get_models():
+    """Lazily import models."""
+    from app.models import Article, ArticleStatus, Feedback, FeedbackRating, Source, DeepDive
+    return Article, ArticleStatus, Feedback, FeedbackRating, Source, DeepDive
 
 
 @main.route('/health')
@@ -78,6 +87,7 @@ def feedback_good(article_id: str):
     
     Creates Feedback record with rating="good" and updates Article status.
     """
+    Article, ArticleStatus, Feedback, FeedbackRating, Source, DeepDive = get_models()
     return _handle_feedback(article_id, FeedbackRating.GOOD, ArticleStatus.GOOD)
 
 
@@ -88,6 +98,7 @@ def feedback_no(article_id: str):
     
     Creates Feedback record with rating="no" and updates Article status to rejected.
     """
+    Article, ArticleStatus, Feedback, FeedbackRating, Source, DeepDive = get_models()
     return _handle_feedback(article_id, FeedbackRating.NO, ArticleStatus.REJECTED)
 
 
@@ -99,7 +110,8 @@ def feedback_why_not(article_id: str):
     GET: Shows form for text input
     POST: Creates Feedback record with rating="why_not" and notes
     """
-    session = SessionLocal()
+    Article, ArticleStatus, Feedback, FeedbackRating, Source, DeepDive = get_models()
+    session = get_db_session()
     
     try:
         # Validate article ID
@@ -166,7 +178,7 @@ def feedback_why_not(article_id: str):
         session.close()
 
 
-def _handle_feedback(article_id: str, rating: FeedbackRating, new_status: ArticleStatus):
+def _handle_feedback(article_id: str, rating, new_status):
     """
     Generic feedback handler for Good and No buttons.
     
@@ -178,7 +190,8 @@ def _handle_feedback(article_id: str, rating: FeedbackRating, new_status: Articl
     Returns:
         Rendered confirmation template
     """
-    session = SessionLocal()
+    Article, ArticleStatus, Feedback, FeedbackRating, Source, DeepDive = get_models()
+    session = get_db_session()
     
     try:
         # Validate article ID
