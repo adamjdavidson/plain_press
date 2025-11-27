@@ -374,6 +374,11 @@ def admin_set_pending(article_id: str):
         article.emailed_date = None
         article.email_batch_id = None
 
+        # Boost score to 0.5 if below threshold so it qualifies for email
+        if article.filter_score < 0.5:
+            article.filter_score = 0.5
+            article.filter_notes = (article.filter_notes or '') + ' [Manually included by editor]'
+
         # Remove any feedback
         feedback = session.query(Feedback).filter(Feedback.article_id == article_uuid).first()
         if feedback:
@@ -494,11 +499,15 @@ def admin_bulk_action():
         uuids = [UUID(id_str) for id_str in ids]
 
         if action == 'pending':
-            # Reset to pending
-            session.query(Article).filter(Article.id.in_(uuids)).update(
-                {Article.status: ArticleStatus.PENDING, Article.emailed_date: None, Article.email_batch_id: None},
-                synchronize_session=False
-            )
+            # Reset to pending and boost low scores to 0.5
+            articles = session.query(Article).filter(Article.id.in_(uuids)).all()
+            for article in articles:
+                article.status = ArticleStatus.PENDING
+                article.emailed_date = None
+                article.email_batch_id = None
+                if article.filter_score < 0.5:
+                    article.filter_score = 0.5
+                    article.filter_notes = (article.filter_notes or '') + ' [Manually included by editor]'
             session.query(Feedback).filter(Feedback.article_id.in_(uuids)).delete(synchronize_session=False)
 
         elif action == 'reject':

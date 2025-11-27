@@ -123,9 +123,14 @@
     .score-low { background: #ffebee; color: #c62828; }
 
     .headline {
-      max-width: 400px;
+      max-width: 600px;
       overflow: hidden;
       text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .date-added {
+      font-size: 12px;
+      color: #666;
       white-space: nowrap;
     }
     .headline a { color: #333; text-decoration: none; }
@@ -247,6 +252,7 @@
         <th>Score</th>
         <th>Headline</th>
         <th>Source</th>
+        <th>Added</th>
         <th>Filter Notes</th>
         <th>Actions</th>
       </tr>
@@ -265,6 +271,7 @@
           <a href="{{ article.external_url }}" target="_blank" title="{{ article.headline }}">{{ article.headline }}</a>
         </td>
         <td class="source">{{ article.source_name }}</td>
+        <td class="date-added">{{ article.discovered_date.strftime('%b %d') if article.discovered_date else (article.created_at.strftime('%b %d') if article.created_at else '-') }}</td>
         <td class="notes" title="{{ article.filter_notes or '' }}">{{ article.filter_notes or '-' }}</td>
         <td class="actions">
           <button onclick="setStatus('{{ article.id }}', 'pending')" title="Reset to Pending">Pending</button>
