@@ -13,7 +13,7 @@ from typing import Optional
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail, From, To, Subject, HtmlContent
+from sendgrid.helpers.mail import Mail, From, To, Subject, HtmlContent, TrackingSettings, ClickTracking
 
 from app.database import SessionLocal
 from app.models import Article, ArticleStatus, EmailBatch, EmailStatus
@@ -113,6 +113,11 @@ def send_email(
         to_emails=to_emails,
         subject=Subject(subject),
         html_content=HtmlContent(html_content)
+    )
+
+    # Disable click tracking so links go directly to our app (no SendGrid redirect)
+    message.tracking_settings = TrackingSettings(
+        click_tracking=ClickTracking(enable=False, enable_text=False)
     )
     
     client = get_sendgrid_client()

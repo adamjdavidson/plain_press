@@ -223,10 +223,10 @@ def _handle_feedback(article_id: str, rating: FeedbackRating, new_status: Articl
                 # Generate deep dive report
                 deep_dive = generate_deep_dive_for_article(article_uuid)
                 
-                if deep_dive and deep_dive.google_doc_url:
-                    doc_url = deep_dive.google_doc_url
-                    
-                    # Send report email
+                if deep_dive:
+                    doc_url = deep_dive.google_doc_url  # May be None if Google not configured
+
+                    # Send report email (even if no Google Doc)
                     editor_email = os.environ.get('EDITOR_EMAIL')
                     if editor_email:
                         send_deep_dive_email(
@@ -234,10 +234,10 @@ def _handle_feedback(article_id: str, rating: FeedbackRating, new_status: Articl
                             headline=article.headline,
                             source_name=article.source_name,
                             report_text=deep_dive.full_report_text,
-                            doc_url=deep_dive.google_doc_url,
+                            doc_url=deep_dive.google_doc_url or '',
                             original_url=article.external_url
                         )
-                    
+
                     logger.info(f"Deep dive completed: {deep_dive.id}")
                     
             except Exception as e:
