@@ -224,6 +224,78 @@
     "notes": "Premier science journal - discoveries, research findings"
   },
   {
+    "name": "National Geographic",
+    "type": "rss",
+    "url": "https://www.nationalgeographic.com/feeds/rss/news",
+    "is_active": true,
+    "trust_score": 0.7,
+    "notes": "Wildlife, nature, exploration, cultures"
+  },
+  {
+    "name": "New Scientist",
+    "type": "rss",
+    "url": "https://www.newscientist.com/feed/home/",
+    "is_active": true,
+    "trust_score": 0.7,
+    "notes": "Science discoveries, nature, technology"
+  },
+  {
+    "name": "Scientific American",
+    "type": "rss",
+    "url": "https://rss.sciam.com/ScientificAmerican-News",
+    "is_active": true,
+    "trust_score": 0.7,
+    "notes": "Science news and discoveries"
+  },
+  {
+    "name": "Discover Magazine",
+    "type": "rss",
+    "url": "https://www.discovermagazine.com/rss/all",
+    "is_active": true,
+    "trust_score": 0.6,
+    "notes": "Science, nature, space, health discoveries"
+  },
+  {
+    "name": "Popular Science",
+    "type": "rss",
+    "url": "https://www.popsci.com/feed/",
+    "is_active": true,
+    "trust_score": 0.6,
+    "notes": "Science and technology stories"
+  },
+  {
+    "name": "Treehugger",
+    "type": "rss",
+    "url": "https://www.treehugger.com/feeds/all-treehugger.atom",
+    "is_active": true,
+    "trust_score": 0.6,
+    "notes": "Environment, sustainable living, nature"
+  },
+  {
+    "name": "Hakai Magazine",
+    "type": "rss",
+    "url": "https://hakaimagazine.com/feed/",
+    "is_active": true,
+    "trust_score": 0.7,
+    "notes": "Coastal science, ocean life, fishing communities"
+  },
+  {
+    "name": "Knowable Magazine",
+    "type": "rss",
+    "url": "https://knowablemagazine.org/rss",
+    "is_active": true,
+    "trust_score": 0.7,
+    "notes": "Science journalism from Annual Reviews"
+  },
+  {
+    "name": "Aeon Essays",
+    "type": "rss",
+    "url": "https://aeon.co/feed.rss",
+    "is_active": true,
+    "trust_score": 0.6,
+    "notes": "Philosophy, science, culture essays"
+  },
+  {
     "name": "Wholesome Local News",
     "type": "search_query",
     "search_query": "heartwarming local news story community",

@@ -178,6 +178,21 @@
       white-space: nowrap;
     }
 
+    .topics {
+      font-size: 11px;
+      color: #555;
+      max-width: 150px;
+    }
+    .topic-tag {
+      display: inline-block;
+      background: #e8f4f8;
+      color: #2c5282;
+      padding: 2px 6px;
+      border-radius: 10px;
+      margin: 1px;
+      font-size: 10px;
+    }
+
     .select-all-container { display: flex; align-items: center; gap: 5px; }
   </style>
 </head>
@@ -260,6 +275,7 @@
         <th>Status</th>
         <th>Score</th>
         <th>Headline</th>
+        <th>Topics</th>
         <th>Source</th>
         <th>Added</th>
         <th>Filter Notes</th>
@@ -278,6 +294,15 @@
         </td>
         <td class="headline">
           <a href="{{ article.external_url }}" target="_blank" title="{{ article.headline }}">{{ article.headline }}</a>
+        </td>
+        <td class="topics">
+          {% if article.topics %}
+            {% for topic in article.topics %}
+              <span class="topic-tag">{{ topic }}</span>
+            {% endfor %}
+          {% else %}
+            -
+          {% endif %}
         </td>
         <td class="source">{{ article.source_name }}</td>
         <td class="date-added">{{ article.discovered_date.strftime('%b %d') if article.discovered_date else (article.created_at.strftime('%b %d') if article.created_at else '-') }}</td>
