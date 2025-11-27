@@ -9,6 +9,7 @@ from unittest.mock import patch, MagicMock
 from datetime import datetime, timezone
 
 from app.services.email import (
+    format_date_for_email,
     send_email,
     render_email_html,
     create_email_batch,
@@ -54,13 +55,14 @@ class TestRenderEmail:
         
         db_session.commit()
         
-        # Render email
+        # Render email - use dynamic date
+        test_date = format_date_for_email()
         with patch.dict('os.environ', {'FEEDBACK_URL_BASE': 'http://test.local'}):
-            html = render_email_html(articles, "November 26, 2024")
-        
+            html = render_email_html(articles, test_date)
+
         # Verify content
-        assert "Plain News Candidates" in html
-        assert "November 26, 2024" in html
+        assert "Plain Press Candidates" in html
+        assert test_date in html
         assert "3 articles for review" in html
         
         for article in articles:
@@ -73,9 +75,10 @@ class TestRenderEmail:
     
     def test_render_email_empty_articles(self, db_session):
         """Test email renders with no articles."""
-        html = render_email_html([], "November 26, 2024")
-        
-        assert "Plain News Candidates" in html
+        test_date = format_date_for_email()
+        html = render_email_html([], test_date)
+
+        assert "Plain Press Candidates" in html
         assert "0 articles" in html
 
 

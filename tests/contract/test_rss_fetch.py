@@ -7,8 +7,16 @@ Tests RSS parsing with valid feeds, malformed feeds, and network errors.
 import pytest
 from unittest.mock import patch, MagicMock
 from datetime import datetime, timezone
+import time
 
 from app.services.rss_fetcher import fetch_rss_feed, _parse_entry
+
+
+def _make_time_tuple(dt: datetime = None) -> tuple:
+    """Create a time tuple for feedparser from a datetime (defaults to now)."""
+    if dt is None:
+        dt = datetime.now(timezone.utc)
+    return time.strptime(dt.strftime('%Y %m %d %H %M %S'), '%Y %m %d %H %M %S')
 
 
 class TestFetchRssFeed:
@@ -44,6 +52,8 @@ class TestFetchRssFeed:
     def test_fetch_with_mocked_feedparser(self, mock_feedparser):
         """Test RSS parsing with mocked feedparser response."""
         # Mock feedparser response - use a dict-like object for compatibility
+        # Use dynamic date to avoid hardcoded year
+        test_time_tuple = _make_time_tuple()
         mock_result = {
             'status': 200,
             'bozo': False,
@@ -52,7 +62,7 @@ class TestFetchRssFeed:
                     'title': 'Test Article Title',
                     'link': 'https://example.com/article/1',
                     'summary': 'This is the article summary.',
-                    'published_parsed': (2024, 11, 26, 12, 0, 0, 0, 0, 0),
+                    'published_parsed': test_time_tuple,
                 },
                 {
                     'title': 'Second Article',
@@ -139,19 +149,22 @@ class TestParseEntry:
     
     def test_parse_complete_entry(self):
         """Test parsing entry with all fields."""
+        # Use dynamic date to avoid hardcoded year
+        test_time_tuple = _make_time_tuple()
+        current_year = datetime.now().year
         entry = {
             'title': 'Complete Article',
             'link': 'https://example.com/article',
             'content': [{'value': 'Full content here.'}],
-            'published_parsed': (2024, 11, 26, 10, 30, 0, 0, 0, 0),
+            'published_parsed': test_time_tuple,
         }
-        
+
         result = _parse_entry(entry, 'https://example.com/feed')
-        
+
         assert result['headline'] == 'Complete Article'
         assert result['url'] == 'https://example.com/article'
         assert result['content'] == 'Full content here.'
-        assert result['published_date'].year == 2024
+        assert result['published_date'].year == current_year
         assert result['source_url'] == 'https://example.com/feed'
     
     def test_parse_entry_missing_title_returns_none(self):
@@ -200,14 +213,18 @@ class TestParseEntry:
     
     def test_parse_entry_uses_updated_parsed_if_no_published(self):
         """Test that updated_parsed is used when published_parsed missing."""
+        # Use dynamic date to avoid hardcoded year
+        test_time_tuple = _make_time_tuple()
+        current_year = datetime.now().year
+        current_day = datetime.now().day
         entry = {
             'title': 'Article',
             'link': 'https://example.com/article',
-            'updated_parsed': (2024, 11, 25, 8, 0, 0, 0, 0, 0),
+            'updated_parsed': test_time_tuple,
         }
-        
+
         result = _parse_entry(entry, 'https://example.com/feed')
-        
-        assert result['published_date'].year == 2024
-        assert result['published_date'].day == 25
+
+        assert result['published_date'].year == current_year
+        assert result['published_date'].day == current_day
 

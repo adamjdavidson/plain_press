@@ -27,8 +27,16 @@ def _log_claude(msg: str):
     print(full_msg, file=sys.stdout, flush=True)
 
 # Configuration
-MODEL = "claude-sonnet-4-5"  # Supports structured outputs (Nov 2025)
+# NOTE: Model name is an Anthropic API identifier, not a date.
+# Check https://docs.anthropic.com/en/docs/about-claude/models for latest versions.
+MODEL = os.environ.get("CLAUDE_FILTER_MODEL", "claude-sonnet-4-5")
 MAX_TOKENS = 4096
+
+# Anthropic beta API version identifier
+# NOTE: Beta feature versions include dates in their identifiers (e.g., 2025-11-13).
+# This is an API version string required by Anthropic, not a runtime date.
+# Check Anthropic docs for the latest beta version when updating.
+STRUCTURED_OUTPUTS_BETA = os.environ.get("ANTHROPIC_STRUCTURED_OUTPUTS_BETA", "structured-outputs-2025-11-13")
 TEMPERATURE = 0  # Deterministic for consistency
 BATCH_SIZE = int(os.environ.get('BATCH_SIZE', '10'))
 FILTER_THRESHOLD = float(os.environ.get('FILTER_SCORE_THRESHOLD', '0.5'))
@@ -38,6 +46,15 @@ RETRY_BASE_DELAY = 2.0
 # Cost estimates (USD per 1M tokens) - Sonnet pricing
 INPUT_COST_PER_M = 3.0
 OUTPUT_COST_PER_M = 15.0
+
+# Topic categories for article classification
+TOPIC_CATEGORIES = [
+    "animals", "wildlife", "farming", "agriculture",
+    "science", "discovery", "history", "archaeology",
+    "community", "small_town", "food", "cooking",
+    "nature", "weather", "crafts", "traditions",
+    "health", "medicine", "technology", "innovation"
+]
 
 # JSON Schema for structured output - guarantees valid JSON
 ARTICLE_RESULT_SCHEMA = {
@@ -49,12 +66,24 @@ ARTICLE_RESULT_SCHEMA = {
                 "type": "object",
                 "properties": {
                     "index": {"type": "integer"},
+                    "content_type": {
+                        "type": "string",
+                        "enum": ["news_article", "event_listing", "directory_page", "about_page", "other_non_news"]
+                    },
+                    "topics": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "enum": TOPIC_CATEGORIES
+                        }
+                        # Note: maxItems not supported by Anthropic structured outputs
+                    },
                     "filter_score": {"type": "number"},
                     "summary": {"type": "string"},
                     "amish_angle": {"type": "string"},
                     "filter_notes": {"type": "string"}
                 },
-                "required": ["index", "filter_score", "summary", "amish_angle", "filter_notes"],
+                "required": ["index", "content_type", "topics", "filter_score", "summary", "amish_angle", "filter_notes"],
                 "additionalProperties": False
             }
         }
@@ -64,10 +93,27 @@ ARTICLE_RESULT_SCHEMA = {
 }
 
 
-SYSTEM_PROMPT_TEMPLATE = """You are an editorial filter for Plain Press, a publication serving conservative Amish Christian readers. 
+SYSTEM_PROMPT_TEMPLATE = """You are an editorial filter for Plain Press, a publication serving conservative Amish Christian readers.
 Your task is to evaluate article candidates for inclusion in the daily email digest.
 
-EDITORIAL GUIDELINES:
+STEP 1 - CONTENT TYPE CLASSIFICATION (REQUIRED FIRST):
+Before evaluating editorial fit, you MUST first determine what type of content this is:
+
+- "news_article": A STORY about something that HAPPENED - has a specific event, when/what/where, narrative structure, journalism
+- "event_listing": Calendar events, schedules, "things to do", upcoming festivals, ticket sales, event announcements
+- "directory_page": Lists without narrative - "Meet our animals", staff directories, product catalogs, resource lists
+- "about_page": Static organizational info - "About Us", "Our Mission", "History of...", FAQ pages
+- "other_non_news": Anything else that isn't journalism - recipes, how-to guides, opinion pieces without news, promotional content
+
+CRITICAL RULE: Only content_type="news_article" should receive a filter_score above 0.0.
+All other content types MUST receive filter_score: 0.0 regardless of how wholesome or relevant the topic seems.
+
+A news article MUST have:
+- A specific event or occurrence that happened (not something that WILL happen)
+- A narrative structure (not just a list of items)
+- Journalistic reporting (not marketing, event promotion, or organizational info)
+
+EDITORIAL GUIDELINES (apply ONLY to news_article content):
 
 The ideal story is a "delightful oddity" - something surprising, wholesome, and relatable that would make an Amish grandmother smile.
 
@@ -83,12 +129,18 @@ GOOD TOPICS (boost score):
 BORDERLINE (use judgment):
 {borderline_rules}
 
+TOPIC CATEGORIES (select 1-3 that apply):
+animals, wildlife, farming, agriculture, science, discovery, history, archaeology,
+community, small_town, food, cooking, nature, weather, crafts, traditions, health, medicine, technology, innovation
+
 For EACH article, provide:
 - index: the article index from the input
-- filter_score: float 0.0-1.0 (1.0 = perfect fit, 0.0 = completely inappropriate)
+- content_type: one of news_article, event_listing, directory_page, about_page, other_non_news
+- topics: array of 1-3 topic categories that apply (from the list above)
+- filter_score: float 0.0-1.0 (1.0 = perfect fit, 0.0 = reject) - MUST be 0.0 if content_type is not news_article
 - summary: 2-3 sentence summary suitable for Amish readers (simple language, 8th grade level)
-- amish_angle: 1 sentence explaining why this story resonates with Amish values
-- filter_notes: brief explanation of scoring rationale"""
+- amish_angle: 1 sentence explaining why this story resonates with Amish values (or why it doesn't if rejected)
+- filter_notes: brief explanation of scoring rationale including content_type decision"""
 
 
 def get_anthropic_client() -> Anthropic:
@@ -178,7 +230,7 @@ def filter_article_batch(articles: list[dict], system_prompt: str) -> list[dict]
                 model=MODEL,
                 max_tokens=MAX_TOKENS,
                 temperature=TEMPERATURE,
-                betas=["structured-outputs-2025-11-13"],
+                betas=[STRUCTURED_OUTPUTS_BETA],
                 system=system_prompt,
                 messages=[{"role": "user", "content": user_message}],
                 output_format={
@@ -290,11 +342,19 @@ def filter_all_articles(articles: list[dict]) -> tuple[list[dict], list[dict], d
         # Merge results and categorize
         for j, article in enumerate(batch):
             result = results_by_index.get(j, {})
+            content_type = result.get('content_type', 'other_non_news')
+            article['content_type'] = content_type
+            article['topics'] = result.get('topics', [])
             article['filter_score'] = result.get('filter_score', 0.0)
             article['summary'] = result.get('summary', '')
             article['amish_angle'] = result.get('amish_angle', '')
             article['filter_notes'] = result.get('filter_notes', 'No result')
-            
+
+            # Enforce: non-news content MUST have score 0
+            if content_type != 'news_article':
+                article['filter_score'] = 0.0
+                article['filter_notes'] = f"Rejected: content_type={content_type}. {article['filter_notes']}"
+
             # Apply threshold
             if article['filter_score'] >= FILTER_THRESHOLD:
                 kept.append(article)

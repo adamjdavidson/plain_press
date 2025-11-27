@@ -22,7 +22,10 @@ from app.services.google_docs import create_doc, share_doc_with_user
 logger = logging.getLogger(__name__)
 
 # Claude model for deep dives (Sonnet for quality)
-CLAUDE_MODEL = "claude-sonnet-4-20250514"
+# NOTE: Model versions include release dates in their identifiers (e.g., 20250514).
+# This is an Anthropic API model name, not a runtime date.
+# Check https://docs.anthropic.com/en/docs/about-claude/models for latest versions.
+CLAUDE_MODEL = os.environ.get("CLAUDE_DEEP_DIVE_MODEL", "claude-sonnet-4-20250514")
 
 # Generation settings
 MAX_RETRIES = 3

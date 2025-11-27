@@ -56,84 +56,219 @@
     "notes": "UK-based, more thoughtful. Filter for political content."
   },
   {
-    "name": "Query: Animals Heartwarming",
-    "type": "search_query",
-    "search_query": "unusual animal behavior heartwarming story 2024",
+    "name": "Smithsonian Air & Space",
+    "type": "rss",
+    "url": "https://www.smithsonianmag.com/rss/air-space-magazine/",
     "is_active": true,
-    "trust_score": 0.5,
-    "notes": "Animals are most reliable category"
+    "trust_score": 0.7,
+    "notes": "Aviation, space exploration, flight history"
   },
   {
-    "name": "Query: Animal Friendships",
-    "type": "search_query",
-    "search_query": "unlikely animal friendship dog cat farm 2024",
+    "name": "Smithsonian Arts & Culture",
+    "type": "rss",
+    "url": "https://www.smithsonianmag.com/rss/arts-culture/",
     "is_active": true,
-    "trust_score": 0.5,
-    "notes": "Unlikely friendships are highly engaging"
+    "trust_score": 0.7,
+    "notes": "Arts, culture, museums, cultural stories"
   },
   {
-    "name": "Query: Community Helpers",
-    "type": "search_query",
-    "search_query": "community volunteers neighbors help build restore 2024",
+    "name": "Smithsonian History",
+    "type": "rss",
+    "url": "https://www.smithsonianmag.com/rss/history/",
     "is_active": true,
-    "trust_score": 0.5,
-    "notes": "Community cooperation aligns with Amish values"
+    "trust_score": 0.7,
+    "notes": "Historical stories, American history, world history"
   },
   {
-    "name": "Query: Small Town Traditions",
-    "type": "search_query",
-    "search_query": "small town quirky tradition festival annual celebration 2024",
+    "name": "Smithsonian Innovation",
+    "type": "rss",
+    "url": "https://www.smithsonianmag.com/rss/innovation/",
     "is_active": true,
-    "trust_score": 0.5,
-    "notes": "Small-town life resonates with readers"
+    "trust_score": 0.7,
+    "notes": "Technology, inventions, innovation stories"
   },
   {
-    "name": "Query: Food Oddities",
-    "type": "search_query",
-    "search_query": "unusual food product bizarre flavor combination launched 2024",
+    "name": "Smithsonian Science & Nature",
+    "type": "rss",
+    "url": "https://www.smithsonianmag.com/rss/science-nature/",
     "is_active": true,
-    "trust_score": 0.5,
-    "notes": "Food stories are universally relatable"
+    "trust_score": 0.7,
+    "notes": "Science, nature, wildlife, environment"
   },
   {
-    "name": "Query: Giant Vegetables",
-    "type": "search_query",
-    "search_query": "giant vegetable pumpkin world record harvest 2024",
-    "is_active": true,
-    "trust_score": 0.5,
-    "notes": "Produce records are acceptable (not human achievement)"
-  },
-  {
-    "name": "Query: Heritage Railway",
-    "type": "search_query",
-    "search_query": "heritage railway steam train volunteers restored 2024",
-    "is_active": true,
-    "trust_score": 0.5,
-    "notes": "Old technology + community effort"
-  },
-  {
-    "name": "Query: Covered Bridge",
-    "type": "search_query",
-    "search_query": "covered bridge festival celebration historic preservation 2024",
+    "name": "Mental Floss",
+    "type": "rss",
+    "url": "https://www.mentalfloss.com/feed",
     "is_active": true,
     "trust_score": 0.6,
-    "notes": "Perfect Amish content - heritage and community"
+    "notes": "Quirky facts and unusual stories"
   },
   {
-    "name": "Query: Nature Wonder",
-    "type": "search_query",
-    "search_query": "unusual natural phenomenon rare flower bloom migration 2024",
+    "name": "NPR Strange News",
+    "type": "rss",
+    "url": "https://feeds.npr.org/1033/rss.xml",
     "is_active": true,
-    "trust_score": 0.5,
-    "notes": "Nature is God's creation, inspires wonder"
+    "trust_score": 0.7,
+    "notes": "NPR's oddities and unusual stories feed"
   },
   {
-    "name": "Query: Farm Animal Rescue",
-    "type": "search_query",
-    "search_query": "farm animal rescue sanctuary heartwarming story 2024",
+    "name": "BBC News Magazine",
+    "type": "rss",
+    "url": "https://feeds.bbci.co.uk/news/magazine/rss.xml",
     "is_active": true,
-    "trust_score": 0.5,
-    "notes": "Farm animals relatable, rescue without tragedy focus"
+    "trust_score": 0.7,
+    "notes": "Human interest and feature stories"
+  },
+  {
+    "name": "Modern Farmer",
+    "type": "rss",
+    "url": "https://modernfarmer.com/feed/",
+    "is_active": true,
+    "trust_score": 0.6,
+    "notes": "Agriculture and rural life - highly relevant to Amish readership"
+  },
+  {
+    "name": "ScienceDaily",
+    "type": "rss",
+    "url": "https://www.sciencedaily.com/rss/all.xml",
+    "is_active": true,
+    "trust_score": 0.7,
+    "notes": "Broad science coverage from universities and research organizations"
+  },
+  {
+    "name": "Live Science",
+    "type": "rss",
+    "url": "http://www.livescience.com/feeds.xml",
+    "is_active": true,
+    "trust_score": 0.7,
+    "notes": "Science oddities - UFO halos, bone-crushing dogs, ancient discoveries"
+  },
+  {
+    "name": "Nautilus",
+    "type": "rss",
+    "url": "https://nautil.us/feed/",
+    "is_active": true,
+    "trust_score": 0.7,
+    "notes": "High-quality science essays and animal stories"
+  },
+  {
+    "name": "Phys.org",
+    "type": "rss",
+    "url": "https://phys.org/rss-feed/",
+    "is_active": true,
+    "trust_score": 0.6,
+    "notes": "Daily science news, 30+ stories per day"
+  },
+  {
+    "name": "Ancient Origins",
+    "type": "rss",
+    "url": "https://www.ancient-origins.net/rss.xml",
+    "is_active": true,
+    "trust_score": 0.6,
+    "notes": "Archaeology, history, ancient discoveries"
+  },
+  {
+    "name": "BBC World",
+    "type": "rss",
+    "url": "https://feeds.bbci.co.uk/news/world/rss.xml",
+    "is_active": true,
+    "trust_score": 0.6,
+    "notes": "International news - filter for wholesome stories"
+  },
+  {
+    "name": "Mongabay",
+    "type": "rss",
+    "url": "https://www.mongabay.com/feed/",
+    "is_active": true,
+    "trust_score": 0.6,
+    "notes": "Wildlife, environment, conservation news"
+  },
+  {
+    "name": "Brownfield Ag News",
+    "type": "rss",
+    "url": "https://brownfieldagnews.com/feed/",
+    "is_active": true,
+    "trust_score": 0.6,
+    "notes": "Farm news, rural communities, agriculture"
+  },
+  {
+    "name": "The Marginalian",
+    "type": "rss",
+    "url": "https://feeds.feedburner.com/brainpickings/rss",
+    "is_active": true,
+    "trust_score": 0.6,
+    "notes": "Literary essays, philosophy, culture, wonder"
+  },
+  {
+    "name": "WIRED",
+    "type": "rss",
+    "url": "https://www.wired.com/feed/rss",
+    "is_active": true,
+    "trust_score": 0.6,
+    "notes": "Technology, science, culture - filter for tech-heavy content"
+  },
+  {
+    "name": "Ars Technica",
+    "type": "rss",
+    "url": "https://feeds.arstechnica.com/arstechnica/index",
+    "is_active": true,
+    "trust_score": 0.6,
+    "notes": "Technology and science news, in-depth coverage"
+  },
+  {
+    "name": "Nature News",
+    "type": "rss",
+    "url": "https://www.nature.com/nature.rss",
+    "is_active": true,
+    "trust_score": 0.7,
+    "notes": "Premier science journal - discoveries, research findings"
+  },
+  {
+    "name": "Wholesome Local News",
+    "type": "search_query",
+    "search_query": "heartwarming local news story community",
+    "is_active": false,
+    "trust_score": 0.6,
+    "notes": "DISABLED - Exa queries need rework"
+  },
+  {
+    "name": "Unusual Discoveries",
+    "type": "search_query",
+    "search_query": "unusual discovery found surprising news",
+    "is_active": false,
+    "trust_score": 0.6,
+    "notes": "DISABLED - Exa queries need rework"
+  },
+  {
+    "name": "Quirky News",
+    "type": "search_query",
+    "search_query": "quirky odd news story",
+    "is_active": false,
+    "trust_score": 0.6,
+    "notes": "DISABLED - Exa queries need rework"
+  },
+  {
+    "name": "Small Town Stories",
+    "type": "search_query",
+    "search_query": "small town news story remarkable",
+    "is_active": false,
+    "trust_score": 0.6,
+    "notes": "DISABLED - Exa queries need rework"
+  },
+  {
+    "name": "Nature and Wildlife News",
+    "type": "search_query",
+    "search_query": "wildlife nature news unusual",
+    "is_active": false,
+    "trust_score": 0.6,
+    "notes": "DISABLED - Exa queries need rework"
+  },
+  {
+    "name": "Feel-Good News",
+    "type": "search_query",
+    "search_query": "feel good news story uplifting",
+    "is_active": false,
+    "trust_score": 0.6,
+    "notes": "DISABLED - Exa queries need rework"
   }
 ]
-

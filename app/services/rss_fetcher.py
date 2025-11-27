@@ -31,6 +31,9 @@ RSS_FETCH_DELAY = 1.0   # seconds between fetches
 MAX_RETRIES = 3
 RETRY_BASE_DELAY = 2.0  # seconds
 
+# Use a browser-like User-Agent to avoid being blocked
+USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+
 
 def fetch_rss_feed(url: str, timeout: int = RSS_FETCH_TIMEOUT) -> list[dict]:
     """
@@ -51,7 +54,7 @@ def fetch_rss_feed(url: str, timeout: int = RSS_FETCH_TIMEOUT) -> list[dict]:
             _log_rss(f"Fetching {short_url} (attempt {attempt + 1})...")
             fetch_start = time.time()
             # feedparser handles most edge cases gracefully
-            result = feedparser.parse(url, request_headers={'User-Agent': 'AmishNewsFinder/1.0'})
+            result = feedparser.parse(url, request_headers={'User-Agent': USER_AGENT})
             fetch_time = time.time() - fetch_start
             _log_rss(f"Fetched {short_url} in {fetch_time:.1f}s")
             

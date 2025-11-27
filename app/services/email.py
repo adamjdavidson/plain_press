@@ -17,12 +17,28 @@ from sendgrid.helpers.mail import Mail, From, To, Subject, HtmlContent
 
 from app.database import SessionLocal
 from app.models import Article, ArticleStatus, EmailBatch, EmailStatus
+from app.services.email_selector import select_articles_for_email
 
 logger = logging.getLogger(__name__)
 
 # Configuration
 MAX_RETRIES = 3
 RETRY_DELAYS = [30, 60, 120]  # seconds
+
+
+def format_date_for_email(dt: Optional[datetime] = None) -> str:
+    """
+    Format a date for display in emails.
+
+    Args:
+        dt: Optional datetime to format (defaults to now)
+
+    Returns:
+        Formatted date string like "November 27, 2025"
+    """
+    if dt is None:
+        dt = datetime.now()
+    return dt.strftime('%B %d, %Y')
 
 
 def get_sendgrid_client() -> SendGridAPIClient:
@@ -45,19 +61,21 @@ def get_template_env() -> Environment:
 def render_email_html(articles: list[Article], date_str: str) -> str:
     """
     Render the daily candidates email HTML.
-    
+
     Args:
         articles: List of Article objects to include
         date_str: Formatted date string for display
-        
+
     Returns:
         Rendered HTML string
     """
     env = get_template_env()
     template = env.get_template('email/daily_candidates.html')
-    
-    feedback_url_base = os.environ.get('FEEDBACK_URL_BASE', 'http://localhost:5000')
-    
+
+    # Production default - Railway env var is unreliable
+    feedback_url_base = os.environ.get('FEEDBACK_URL_BASE') or 'https://plainpress-production.up.railway.app'
+    logger.info(f"FEEDBACK_URL_BASE value: '{feedback_url_base}'")
+
     return template.render(
         articles=articles,
         date=date_str,
@@ -338,10 +356,11 @@ def send_deep_dive_email(
 def send_daily_candidates() -> dict:
     """
     Main function to send daily candidate email.
-    
-    Queries pending articles, composes email, sends via SendGrid,
+
+    Uses smart selector to pick articles with variety (max per source,
+    max per topic), composes email, sends via SendGrid,
     updates article status, and creates EmailBatch record.
-    
+
     Returns:
         Stats dict with results
     """
@@ -352,26 +371,19 @@ def send_daily_candidates() -> dict:
         'email_sent': False,
         'error': None,
     }
-    
+
     try:
-        # Query pending articles
-        articles = session.query(Article).filter(
-            Article.status == ArticleStatus.PENDING
-        ).order_by(
-            Article.filter_score.desc(),
-            Article.discovered_date.desc()
-        ).all()
-        
+        # Use smart selector with variety algorithm
+        articles = select_articles_for_email(session)
+
         stats['articles_found'] = len(articles)
-        
+
         # Check if we have articles to send
         if not articles:
             logger.warning("No pending candidates for daily email")
             return stats
-        
-        # Log warning for high volume
-        if len(articles) > 80:
-            logger.warning(f"High candidate volume: {len(articles)} articles (target: 40-60)")
+
+        logger.info(f"Selected {len(articles)} articles with variety algorithm")
         
         # Compose email
         date_str = datetime.now().strftime('%B %d, %Y')
@@ -428,6 +440,97 @@ def send_daily_candidates() -> dict:
         raise
     finally:
         session.close()
-    
+
     return stats
+
+
+def send_refinement_report(to_email: str, results: dict) -> bool:
+    """
+    Send weekly refinement report email to editor.
+
+    Args:
+        to_email: Editor's email address
+        results: Results dict from run_weekly_refinement()
+
+    Returns:
+        True if sent successfully, False otherwise
+    """
+    subject = f"Plain Press - Weekly Refinement Report ({format_date_for_email()})"
+
+    # Build HTML content
+    suggestions = results.get('suggestions', [])
+    analysis = results.get('analysis', {})
+    trust_changes = results.get('trust_score_changes', {})
+
+    html_parts = [
+        "<html><body>",
+        "<h1>Weekly Refinement Report</h1>",
+        f"<p>Period: {results.get('week_start', 'Unknown')[:10]} to {results.get('week_end', 'Unknown')[:10]}</p>",
+
+        "<h2>Feedback Summary</h2>",
+        f"<ul>",
+        f"<li>Total feedback: {results.get('feedback_collected', 0)}</li>",
+        f"<li>Trust scores updated: {results.get('trust_scores_updated', 0)}</li>",
+        f"</ul>",
+    ]
+
+    # Source trust score changes
+    if trust_changes:
+        html_parts.append("<h2>Source Trust Score Changes</h2>")
+        html_parts.append("<table border='1' cellpadding='5'>")
+        html_parts.append("<tr><th>Source</th><th>Old Score</th><th>New Score</th><th>Approved</th><th>Rejected</th></tr>")
+        for source, data in trust_changes.items():
+            html_parts.append(
+                f"<tr><td>{source}</td><td>{data['old']:.2f}</td><td>{data['new']:.2f}</td>"
+                f"<td>{data['approved']}</td><td>{data['rejected']}</td></tr>"
+            )
+        html_parts.append("</table>")
+
+    # Patterns identified
+    if analysis.get('patterns'):
+        html_parts.append("<h2>Patterns Identified</h2>")
+        patterns = analysis['patterns']
+        if isinstance(patterns, list):
+            html_parts.append("<ul>")
+            for p in patterns:
+                html_parts.append(f"<li>{p}</li>")
+            html_parts.append("</ul>")
+        else:
+            html_parts.append(f"<p>{patterns}</p>")
+
+    # Suggestions
+    if suggestions:
+        html_parts.append("<h2>Suggestions for Improvement</h2>")
+        html_parts.append("<ul>")
+        for s in suggestions:
+            if isinstance(s, dict):
+                html_parts.append(f"<li><strong>{s.get('type', 'Suggestion')}:</strong> {s.get('description', str(s))}</li>")
+            else:
+                html_parts.append(f"<li>{s}</li>")
+        html_parts.append("</ul>")
+
+    # Insights
+    if analysis.get('insights'):
+        html_parts.append("<h2>Additional Insights</h2>")
+        html_parts.append(f"<p>{analysis['insights']}</p>")
+
+    # Errors
+    if results.get('errors'):
+        html_parts.append("<h2>Errors</h2>")
+        html_parts.append("<ul style='color: red;'>")
+        for e in results['errors']:
+            html_parts.append(f"<li>{e}</li>")
+        html_parts.append("</ul>")
+
+    html_parts.append("</body></html>")
+    html_content = "\n".join(html_parts)
+
+    success, error = send_email(to_email, subject, html_content)
+
+    if success:
+        logger.info(f"Refinement report sent to {to_email}")
+    else:
+        logger.error(f"Failed to send refinement report: {error}")
+
+    return success
 

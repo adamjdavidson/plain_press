@@ -45,7 +45,7 @@ def get_exa_client() -> Exa:
 def search_articles(
     query: str,
     num_results: int = EXA_NUM_RESULTS,
-    days_back: int = 30
+    days_back: int = 1000
 ) -> list[dict]:
     """
     Search for articles using Exa API.
@@ -74,6 +74,7 @@ def search_articles(
                 num_results=num_results,
                 type="neural",
                 use_autoprompt=True,
+                category="news",  # Filter to news articles only - excludes event listings, about pages, etc.
                 start_published_date=start_date,
                 text={"max_characters": EXA_MAX_CHARACTERS}
             )

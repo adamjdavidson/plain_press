@@ -157,12 +157,14 @@ def run_discovery_job() -> dict:
             logger.error(f"Claude filtering failed: {e}")
             stats['errors'].append(f"Claude filter: {e}")
             kept_articles = []
+            discarded_articles = []
 
-        # Step 5: Store candidates
-        _log_progress(f"Step 5: Storing {len(kept_articles)} candidates...", job_start)
-        if kept_articles:
+        # Step 5: Store ALL articles (both kept and discarded)
+        all_filtered = kept_articles + discarded_articles
+        _log_progress(f"Step 5: Storing {len(all_filtered)} articles (kept={len(kept_articles)}, discarded={len(discarded_articles)})...", job_start)
+        if all_filtered:
             try:
-                stored_count = store_candidates(kept_articles)
+                stored_count = store_all_articles(all_filtered)
                 stats['total_stored'] = stored_count
                 _log_progress(f"Step 5: Storage complete - {stored_count} stored", job_start)
             except Exception as e:
@@ -170,7 +172,7 @@ def run_discovery_job() -> dict:
                 logger.error(f"Storage failed: {e}")
                 stats['errors'].append(f"Storage: {e}")
         else:
-            _log_progress("Step 5: No candidates to store", job_start)
+            _log_progress("Step 5: No articles to store", job_start)
 
         # Log volume warnings per constitution
         if stats['total_kept'] < 40:
@@ -198,62 +200,80 @@ def run_discovery_job() -> dict:
     return stats
 
 
-def store_candidates(articles: list[dict]) -> int:
+def store_all_articles(articles: list[dict]) -> int:
     """
-    Store filtered candidate articles in database.
-    
+    Store ALL filtered articles in database (both kept and discarded).
+
+    Articles with filter_score >= 0.5 get status=PENDING (candidates).
+    Articles with filter_score < 0.5 get status=REJECTED (searchable but not candidates).
+
     Uses INSERT ... ON CONFLICT DO NOTHING to handle any remaining duplicates.
-    
+
     Args:
         articles: List of article dicts with filter results
-        
+
     Returns:
         Number of articles actually stored
     """
     session = SessionLocal()
     stored_count = 0
-    
+    FILTER_THRESHOLD = 0.5
+
     try:
         for article in articles:
             # Normalize URL for storage
             normalized_url = article.get('normalized_url') or normalize_url(article.get('url', ''))
-            
+
             # Skip if no URL
             if not normalized_url:
                 continue
-            
+
+            # Determine status based on filter score
+            filter_score = article.get('filter_score', 0.0)
+            status = ArticleStatus.PENDING if filter_score >= FILTER_THRESHOLD else ArticleStatus.REJECTED
+
+            # Get topics (will be empty list if not provided by Claude filter)
+            topics = article.get('topics', [])
+
             # Build article record
             article_data = {
                 'external_url': normalized_url,
                 'headline': article.get('headline', '')[:500],
                 'source_name': article.get('source_name', 'Unknown'),
                 'published_date': article.get('published_date'),
-                'summary': article.get('summary', '')[:2000],
-                'amish_angle': article.get('amish_angle', '')[:1000],
-                'filter_score': article.get('filter_score', 0.0),
+                'summary': article.get('summary', '')[:2000] if article.get('summary') else '',
+                'amish_angle': article.get('amish_angle', '')[:1000] if article.get('amish_angle') else '',
+                'filter_score': filter_score,
                 'filter_notes': article.get('filter_notes', ''),
-                'raw_content': article.get('content', '')[:10000],
-                'status': ArticleStatus.PENDING,
+                'raw_content': article.get('content', '')[:10000] if article.get('content') else '',
+                'status': status,
                 'source_id': article.get('source_id'),
+                'topics': topics,
             }
-            
+
             # Use upsert to handle duplicates
             stmt = insert(Article).values(**article_data)
             stmt = stmt.on_conflict_do_nothing(index_elements=['external_url'])
-            
+
             result = session.execute(stmt)
             if result.rowcount > 0:
                 stored_count += 1
-        
+
         session.commit()
-        logger.info(f"Stored {stored_count}/{len(articles)} candidate articles")
-        
+        logger.info(f"Stored {stored_count}/{len(articles)} articles")
+
     except Exception as e:
-        logger.error(f"Error storing candidates: {e}")
+        logger.error(f"Error storing articles: {e}")
         session.rollback()
         raise
     finally:
         session.close()
-    
+
     return stored_count
+
+
+# Keep old function for backwards compatibility
+def store_candidates(articles: list[dict]) -> int:
+    """Deprecated: Use store_all_articles instead."""
+    return store_all_articles(articles)
 

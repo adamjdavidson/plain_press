@@ -116,7 +116,12 @@ class Article(Base):
     # Google Integration (for approved articles)
     google_doc_id: Mapped[Optional[str]] = Column(String(100), nullable=True)
     google_doc_url: Mapped[Optional[str]] = Column(String(500), nullable=True)
-    
+
+    # Article Management (for web UI workflow)
+    is_published: Mapped[bool] = Column(Boolean, nullable=False, default=False)
+    is_rejected: Mapped[bool] = Column(Boolean, nullable=False, default=False)
+    topics: Mapped[list[str]] = Column(ARRAY(String), nullable=False, default=[])
+
     # Foreign Keys
     source_id: Mapped[UUID] = Column(
         PGUUID(as_uuid=True),
@@ -155,6 +160,8 @@ class Article(Base):
         Index("ix_articles_status", "status"),
         Index("ix_articles_discovered_date", "discovered_date"),
         Index("ix_articles_source_id", "source_id"),
+        Index("ix_articles_is_published", "is_published"),
+        Index("ix_articles_is_rejected", "is_rejected"),
     )
 
 
@@ -452,6 +459,50 @@ class RefinementLog(Base):
     # Indexes
     __table_args__ = (
         Index("ix_refinement_logs_week_start", "week_start"),
+    )
+
+
+class EmailSettings(Base):
+    """
+    User preferences for daily email generation.
+
+    Single row table - only one configuration active at a time.
+    """
+    __tablename__ = "email_settings"
+
+    # Primary Key
+    id: Mapped[UUID] = Column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        server_default=func.gen_random_uuid()
+    )
+
+    # Volume settings
+    target_article_count: Mapped[int] = Column(Integer, nullable=False, default=50)
+    min_article_count: Mapped[int] = Column(Integer, nullable=False, default=30)
+    max_article_count: Mapped[int] = Column(Integer, nullable=False, default=70)
+
+    # Variety settings
+    max_per_source: Mapped[int] = Column(Integer, nullable=False, default=5)
+    max_per_topic: Mapped[int] = Column(Integer, nullable=False, default=10)
+
+    # Score thresholds
+    min_filter_score: Mapped[float] = Column(Float, nullable=False, default=0.5)
+
+    # Recipient
+    recipient_email: Mapped[Optional[str]] = Column(String(255), nullable=True)
+
+    # Timestamps
+    created_at: Mapped[datetime] = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now()
     )
 
 
