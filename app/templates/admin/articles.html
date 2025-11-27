@@ -331,6 +331,22 @@
 
       if (action === 'delete' && !confirm('Delete ' + ids.length + ' articles?')) return;
 
+      // Warn about rejecting high-scoring articles
+      if (action === 'reject') {
+        const selectedRows = Array.from(document.querySelectorAll('.row-select:checked'))
+          .map(cb => cb.closest('tr'));
+        const highScoreCount = selectedRows.filter(row => {
+          const scoreText = row.querySelector('.score')?.textContent?.trim();
+          return scoreText && parseFloat(scoreText) >= 0.5;
+        }).length;
+
+        if (highScoreCount > 0) {
+          if (!confirm('Warning: ' + highScoreCount + ' of ' + ids.length + ' selected articles have score >= 0.5.\n\nAre you sure you want to reject them?')) {
+            return;
+          }
+        }
+      }
+
       const response = await fetch('/admin/articles/bulk', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
