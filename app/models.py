@@ -31,6 +31,7 @@ class ArticleStatus(enum.Enum):
     GOOD = "good"
     REJECTED = "rejected"
     PASSED = "passed"
+    PUBLISHED = "published"
 
 
 class SourceType(enum.Enum):

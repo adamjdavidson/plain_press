@@ -338,6 +338,7 @@ def admin_articles():
             'emailed': session.query(Article).filter(Article.status == ArticleStatus.EMAILED).count(),
             'good': session.query(Article).filter(Article.status == ArticleStatus.GOOD).count(),
             'rejected': session.query(Article).filter(Article.status == ArticleStatus.REJECTED).count(),
+            'published': session.query(Article).filter(Article.status == ArticleStatus.PUBLISHED).count(),
             'high_score': session.query(Article).filter(Article.filter_score >= 0.5).count(),
         }
 
@@ -404,6 +405,26 @@ def admin_set_rejected(article_id: str):
             return jsonify({'error': 'Article not found'}), 404
 
         article.status = ArticleStatus.REJECTED
+        session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        session.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        session.close()
+
+
+@main.route('/admin/articles/<article_id>/published', methods=['POST'])
+def admin_set_published(article_id: str):
+    """Mark an article as published."""
+    session = SessionLocal()
+    try:
+        article_uuid = UUID(article_id)
+        article = session.query(Article).filter(Article.id == article_uuid).first()
+        if not article:
+            return jsonify({'error': 'Article not found'}), 404
+
+        article.status = ArticleStatus.PUBLISHED
         session.commit()
         return jsonify({'success': True})
     except Exception as e:
@@ -513,6 +534,12 @@ def admin_bulk_action():
         elif action == 'reject':
             session.query(Article).filter(Article.id.in_(uuids)).update(
                 {Article.status: ArticleStatus.REJECTED},
+                synchronize_session=False
+            )
+
+        elif action == 'published':
+            session.query(Article).filter(Article.id.in_(uuids)).update(
+                {Article.status: ArticleStatus.PUBLISHED},
                 synchronize_session=False
             )
 

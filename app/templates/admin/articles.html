@@ -112,6 +112,7 @@
     .status-emailed { background: #fff3e0; color: #ef6c00; }
     .status-good { background: #e8f5e9; color: #2e7d32; }
     .status-rejected { background: #ffebee; color: #c62828; }
+    .status-published { background: #f3e5f5; color: #7b1fa2; }
 
     .score {
       font-weight: 600;
@@ -205,6 +206,10 @@
       <span>Rejected</span>
     </div>
     <div class="stat-box">
+      <strong>{{ stats.published }}</strong>
+      <span>Published</span>
+    </div>
+    <div class="stat-box">
       <strong>{{ stats.high_score }}</strong>
       <span>Score >= 0.5</span>
     </div>
@@ -218,6 +223,7 @@
       <option value="emailed" {{ 'selected' if filters.status == 'emailed' else '' }}>Emailed</option>
       <option value="good" {{ 'selected' if filters.status == 'good' else '' }}>Good</option>
       <option value="rejected" {{ 'selected' if filters.status == 'rejected' else '' }}>Rejected</option>
+      <option value="published" {{ 'selected' if filters.status == 'published' else '' }}>Published</option>
     </select>
 
     <label>Min Score:</label>
@@ -242,6 +248,7 @@
   <div class="bulk-actions" id="bulkActions">
     <span><strong id="selectedCount">0</strong> selected</span>
     <button class="btn-pending" onclick="bulkAction('pending')">Reset to Pending</button>
+    <button onclick="bulkAction('published')" style="background: #7b1fa2; color: white;">Mark Published</button>
     <button class="btn-reject" onclick="bulkAction('reject')">Mark Rejected</button>
     <button class="btn-delete" onclick="bulkAction('delete')">Delete</button>
   </div>
@@ -277,6 +284,7 @@
         <td class="notes" title="{{ article.filter_notes or '' }}">{{ article.filter_notes or '-' }}</td>
         <td class="actions">
           <button onclick="setStatus('{{ article.id }}', 'pending')" title="Reset to Pending">Pending</button>
+          <button onclick="setStatus('{{ article.id }}', 'published')" title="Mark as Published" style="background: #f3e5f5;">Published</button>
           <button onclick="whyNot('{{ article.id }}', '{{ article.headline|e }}')" title="Reject with feedback" style="background: #fff3cd;">Why Not?</button>
           <button onclick="deleteArticle('{{ article.id }}')" title="Delete">Del</button>
         </td>
