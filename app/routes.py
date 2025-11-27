@@ -5,6 +5,7 @@ Includes:
 - Feedback routes for Good/No/Why Not buttons
 - Deep dive trigger on Good
 - Health check endpoint
+- Admin interface for viewing/managing articles
 """
 
 import logging
@@ -12,7 +13,8 @@ import os
 from datetime import datetime, timezone
 from uuid import UUID
 
-from flask import Blueprint, render_template, request, abort
+from flask import Blueprint, render_template, request, abort, jsonify
+from sqlalchemy import func
 from werkzeug.exceptions import HTTPException
 
 from app.database import SessionLocal
@@ -22,6 +24,9 @@ logger = logging.getLogger(__name__)
 
 # Create blueprint
 main = Blueprint('main', __name__)
+
+# Number of articles per page in admin
+ARTICLES_PER_PAGE = 100
 
 
 @main.route('/health')
@@ -256,13 +261,13 @@ def _handle_feedback(article_id: str, rating: FeedbackRating, new_status: Articl
             message = "Marked as No"
         
         logger.info(f"Feedback recorded: article={article_id}, rating={rating.value}")
-        
+
         return render_template('feedback/confirmation.html',
                              message=message,
                              article=article,
                              rating=rating.value,
                              doc_url=doc_url)
-        
+
     except HTTPException:
         # Re-raise HTTP exceptions (like 404)
         raise
@@ -273,3 +278,200 @@ def _handle_feedback(article_id: str, rating: FeedbackRating, new_status: Articl
     finally:
         session.close()
 
+
+# =============================================================================
+# Admin Routes
+# =============================================================================
+
+@main.route('/admin/articles')
+def admin_articles():
+    """
+    Admin page to view and manage all articles.
+
+    Supports filtering by status, score, source, and search.
+    """
+    session = SessionLocal()
+
+    try:
+        # Get filter parameters
+        status_filter = request.args.get('status', '')
+        min_score = request.args.get('min_score', '')
+        source_filter = request.args.get('source', '')
+        search = request.args.get('search', '')
+        page = int(request.args.get('page', 1))
+
+        # Build query
+        query = session.query(Article)
+
+        if status_filter:
+            try:
+                status_enum = ArticleStatus(status_filter)
+                query = query.filter(Article.status == status_enum)
+            except ValueError:
+                pass
+
+        if min_score:
+            try:
+                query = query.filter(Article.filter_score >= float(min_score))
+            except ValueError:
+                pass
+
+        if source_filter:
+            query = query.filter(Article.source_name == source_filter)
+
+        if search:
+            query = query.filter(Article.headline.ilike(f'%{search}%'))
+
+        # Get total count for pagination
+        total_count = query.count()
+        total_pages = (total_count + ARTICLES_PER_PAGE - 1) // ARTICLES_PER_PAGE
+
+        # Get articles for current page
+        articles = query.order_by(Article.filter_score.desc()).offset(
+            (page - 1) * ARTICLES_PER_PAGE
+        ).limit(ARTICLES_PER_PAGE).all()
+
+        # Get stats
+        stats = {
+            'total': session.query(Article).count(),
+            'pending': session.query(Article).filter(Article.status == ArticleStatus.PENDING).count(),
+            'emailed': session.query(Article).filter(Article.status == ArticleStatus.EMAILED).count(),
+            'good': session.query(Article).filter(Article.status == ArticleStatus.GOOD).count(),
+            'rejected': session.query(Article).filter(Article.status == ArticleStatus.REJECTED).count(),
+            'high_score': session.query(Article).filter(Article.filter_score >= 0.5).count(),
+        }
+
+        # Get unique sources for dropdown
+        sources = [r[0] for r in session.query(Article.source_name).distinct().order_by(Article.source_name).all()]
+
+        return render_template('admin/articles.html',
+                             articles=articles,
+                             stats=stats,
+                             sources=sources,
+                             filters={
+                                 'status': status_filter,
+                                 'min_score': min_score,
+                                 'source': source_filter,
+                                 'search': search,
+                             },
+                             page=page,
+                             total_pages=total_pages)
+    finally:
+        session.close()
+
+
+@main.route('/admin/articles/<article_id>/pending', methods=['POST'])
+def admin_set_pending(article_id: str):
+    """Reset an article to pending status."""
+    session = SessionLocal()
+    try:
+        article_uuid = UUID(article_id)
+        article = session.query(Article).filter(Article.id == article_uuid).first()
+        if not article:
+            return jsonify({'error': 'Article not found'}), 404
+
+        article.status = ArticleStatus.PENDING
+        article.emailed_date = None
+        article.email_batch_id = None
+
+        # Remove any feedback
+        feedback = session.query(Feedback).filter(Feedback.article_id == article_uuid).first()
+        if feedback:
+            session.delete(feedback)
+
+        session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        session.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        session.close()
+
+
+@main.route('/admin/articles/<article_id>/reject', methods=['POST'])
+def admin_set_rejected(article_id: str):
+    """Mark an article as rejected."""
+    session = SessionLocal()
+    try:
+        article_uuid = UUID(article_id)
+        article = session.query(Article).filter(Article.id == article_uuid).first()
+        if not article:
+            return jsonify({'error': 'Article not found'}), 404
+
+        article.status = ArticleStatus.REJECTED
+        session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        session.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        session.close()
+
+
+@main.route('/admin/articles/<article_id>/delete', methods=['POST'])
+def admin_delete_article(article_id: str):
+    """Delete an article."""
+    session = SessionLocal()
+    try:
+        article_uuid = UUID(article_id)
+        article = session.query(Article).filter(Article.id == article_uuid).first()
+        if not article:
+            return jsonify({'error': 'Article not found'}), 404
+
+        # Delete related records first
+        session.query(Feedback).filter(Feedback.article_id == article_uuid).delete()
+        session.query(DeepDive).filter(DeepDive.article_id == article_uuid).delete()
+
+        session.delete(article)
+        session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        session.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        session.close()
+
+
+@main.route('/admin/articles/bulk', methods=['POST'])
+def admin_bulk_action():
+    """Handle bulk actions on multiple articles."""
+    session = SessionLocal()
+    try:
+        data = request.get_json()
+        ids = data.get('ids', [])
+        action = data.get('action', '')
+
+        if not ids:
+            return jsonify({'error': 'No articles selected'}), 400
+
+        uuids = [UUID(id_str) for id_str in ids]
+
+        if action == 'pending':
+            # Reset to pending
+            session.query(Article).filter(Article.id.in_(uuids)).update(
+                {Article.status: ArticleStatus.PENDING, Article.emailed_date: None, Article.email_batch_id: None},
+                synchronize_session=False
+            )
+            session.query(Feedback).filter(Feedback.article_id.in_(uuids)).delete(synchronize_session=False)
+
+        elif action == 'reject':
+            session.query(Article).filter(Article.id.in_(uuids)).update(
+                {Article.status: ArticleStatus.REJECTED},
+                synchronize_session=False
+            )
+
+        elif action == 'delete':
+            session.query(Feedback).filter(Feedback.article_id.in_(uuids)).delete(synchronize_session=False)
+            session.query(DeepDive).filter(DeepDive.article_id.in_(uuids)).delete(synchronize_session=False)
+            session.query(Article).filter(Article.id.in_(uuids)).delete(synchronize_session=False)
+
+        else:
+            return jsonify({'error': 'Invalid action'}), 400
+
+        session.commit()
+        return jsonify({'success': True, 'count': len(ids)})
+    except Exception as e:
+        session.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        session.close()
