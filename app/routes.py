@@ -408,6 +408,53 @@ def admin_set_rejected(article_id: str):
         session.close()
 
 
+@main.route('/admin/articles/<article_id>/why_not', methods=['POST'])
+def admin_why_not(article_id: str):
+    """Mark article as rejected with feedback notes."""
+    session = SessionLocal()
+    try:
+        article_uuid = UUID(article_id)
+        article = session.query(Article).filter(Article.id == article_uuid).first()
+        if not article:
+            return jsonify({'error': 'Article not found'}), 404
+
+        data = request.get_json()
+        notes = data.get('notes', '').strip() if data else ''
+
+        # Create feedback record
+        existing = session.query(Feedback).filter(Feedback.article_id == article_uuid).first()
+        if existing:
+            existing.rating = FeedbackRating.WHY_NOT
+            existing.notes = notes if notes else None
+            existing.clicked_at = datetime.now(timezone.utc)
+        else:
+            feedback = Feedback(
+                article_id=article_uuid,
+                rating=FeedbackRating.WHY_NOT,
+                notes=notes if notes else None,
+                clicked_at=datetime.now(timezone.utc),
+            )
+            session.add(feedback)
+
+        # Update article status
+        article.status = ArticleStatus.REJECTED
+
+        # Update source metrics
+        if article.source_id:
+            source = session.query(Source).filter(Source.id == article.source_id).first()
+            if source:
+                source.total_rejected += 1
+
+        session.commit()
+        logger.info(f"Why Not feedback from admin: article={article_id}, notes={notes[:50] if notes else 'none'}...")
+        return jsonify({'success': True})
+    except Exception as e:
+        session.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        session.close()
+
+
 @main.route('/admin/articles/<article_id>/delete', methods=['POST'])
 def admin_delete_article(article_id: str):
     """Delete an article."""

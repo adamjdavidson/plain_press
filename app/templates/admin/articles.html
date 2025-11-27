@@ -268,7 +268,7 @@
         <td class="notes" title="{{ article.filter_notes or '' }}">{{ article.filter_notes or '-' }}</td>
         <td class="actions">
           <button onclick="setStatus('{{ article.id }}', 'pending')" title="Reset to Pending">Pending</button>
-          <button onclick="setStatus('{{ article.id }}', 'reject')" title="Mark Rejected">Reject</button>
+          <button onclick="whyNot('{{ article.id }}', '{{ article.headline|e }}')" title="Reject with feedback" style="background: #fff3cd;">Why Not?</button>
           <button onclick="deleteArticle('{{ article.id }}')" title="Delete">Del</button>
         </td>
       </tr>
@@ -342,6 +342,23 @@
       } else {
         alert('Error performing bulk action');
       }
+    }
+
+    function whyNot(id, headline) {
+      const notes = prompt('Why should "' + headline.substring(0, 60) + '..." NOT be included?\n\nThis feedback helps improve the filter.');
+      if (notes === null) return; // Cancelled
+
+      fetch('/admin/articles/' + id + '/why_not', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes: notes })
+      }).then(response => {
+        if (response.ok) {
+          location.reload();
+        } else {
+          alert('Error recording feedback');
+        }
+      });
     }
   </script>
 </body>
