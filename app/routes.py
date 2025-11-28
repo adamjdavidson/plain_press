@@ -13,12 +13,13 @@ import os
 from datetime import datetime, timezone
 from uuid import UUID
 
-from flask import Blueprint, render_template, request, abort, jsonify
+import feedparser
+from flask import Blueprint, render_template, request, abort, jsonify, flash, redirect, url_for
 from sqlalchemy import func
 from werkzeug.exceptions import HTTPException
 
 from app.database import SessionLocal
-from app.models import Article, ArticleStatus, Feedback, FeedbackRating, Source, DeepDive
+from app.models import Article, ArticleStatus, Feedback, FeedbackRating, Source, SourceType, DeepDive
 
 logger = logging.getLogger(__name__)
 
@@ -553,6 +554,258 @@ def admin_bulk_action():
 
         session.commit()
         return jsonify({'success': True, 'count': len(ids)})
+    except Exception as e:
+        session.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        session.close()
+
+
+# =============================================================================
+# RSS Source Management Routes
+# =============================================================================
+
+# RSS validation configuration
+RSS_VALIDATION_TIMEOUT = 10  # seconds
+RSS_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+
+
+def validate_rss_url(url: str) -> tuple[bool, str]:
+    """
+    Validate that a URL points to a valid RSS/Atom feed.
+    
+    Args:
+        url: URL to validate
+        
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    try:
+        result = feedparser.parse(url, request_headers={'User-Agent': RSS_USER_AGENT})
+        
+        # Check for HTTP errors
+        status = getattr(result, 'status', 200)
+        if isinstance(status, int) and status >= 400:
+            return False, f"URL returned HTTP {status}"
+        
+        # Check for parsing errors
+        if result.bozo:
+            bozo_exception = getattr(result, 'bozo_exception', None)
+            # Some bozo exceptions are recoverable
+            if not result.entries:
+                return False, f"Invalid RSS/Atom feed: {bozo_exception}"
+        
+        # Must have at least the feed structure (entries can be empty for new feeds)
+        if not hasattr(result, 'feed') or not result.feed:
+            return False, "URL does not contain a valid RSS/Atom feed"
+        
+        return True, ""
+        
+    except Exception as e:
+        return False, f"Error fetching URL: {str(e)}"
+
+
+@main.route('/admin/sources')
+def admin_sources():
+    """
+    Admin page to view and manage RSS feed sources.
+    
+    Supports filtering by status (active/paused) and sorting.
+    """
+    session = SessionLocal()
+    
+    try:
+        # Get filter parameters
+        status_filter = request.args.get('status', '')
+        sort_by = request.args.get('sort', 'name')
+        
+        # Build query for RSS sources only
+        query = session.query(Source).filter(Source.type == SourceType.RSS)
+        
+        # Apply status filter
+        if status_filter == 'active':
+            query = query.filter(Source.is_active == True)
+        elif status_filter == 'paused':
+            query = query.filter(Source.is_active == False)
+        
+        # Apply sorting
+        if sort_by == 'trust_score':
+            query = query.order_by(Source.trust_score.desc())
+        elif sort_by == 'last_fetched':
+            query = query.order_by(Source.last_fetched.desc().nullslast())
+        elif sort_by == 'total_surfaced':
+            query = query.order_by(Source.total_surfaced.desc())
+        else:  # default: name
+            query = query.order_by(Source.name)
+        
+        sources = query.all()
+        
+        # Calculate stats
+        total_rss = session.query(Source).filter(Source.type == SourceType.RSS).count()
+        active_count = session.query(Source).filter(
+            Source.type == SourceType.RSS,
+            Source.is_active == True
+        ).count()
+        paused_count = total_rss - active_count
+        
+        stats = {
+            'total': total_rss,
+            'active': active_count,
+            'paused': paused_count,
+        }
+        
+        return render_template('admin/sources.html',
+                             sources=sources,
+                             stats=stats,
+                             filters={
+                                 'status': status_filter,
+                                 'sort': sort_by,
+                             })
+    finally:
+        session.close()
+
+
+@main.route('/admin/sources', methods=['POST'])
+def admin_add_source():
+    """
+    Add a new RSS feed source.
+    
+    Validates the URL is a valid RSS/Atom feed before saving.
+    """
+    session = SessionLocal()
+    
+    try:
+        # Get form data
+        name = request.form.get('name', '').strip()
+        url = request.form.get('url', '').strip()
+        notes = request.form.get('notes', '').strip()
+        
+        # Validate required fields
+        if not name:
+            flash('Feed name is required', 'error')
+            return redirect(url_for('main.admin_sources'))
+        
+        if not url:
+            flash('Feed URL is required', 'error')
+            return redirect(url_for('main.admin_sources'))
+        
+        # Check for duplicate name
+        existing_name = session.query(Source).filter(Source.name == name).first()
+        if existing_name:
+            flash('A source with this name already exists', 'error')
+            return redirect(url_for('main.admin_sources'))
+        
+        # Check for duplicate URL (RSS sources only)
+        existing_url = session.query(Source).filter(
+            Source.url == url,
+            Source.type == SourceType.RSS
+        ).first()
+        if existing_url:
+            flash(f'This feed URL already exists as "{existing_url.name}"', 'error')
+            return redirect(url_for('main.admin_sources'))
+        
+        # Validate RSS feed
+        is_valid, error_msg = validate_rss_url(url)
+        if not is_valid:
+            flash(f'Invalid RSS feed: {error_msg}', 'error')
+            return redirect(url_for('main.admin_sources'))
+        
+        # Create new source
+        source = Source(
+            name=name,
+            type=SourceType.RSS,
+            url=url,
+            is_active=True,
+            trust_score=0.5,
+            notes=notes if notes else None,
+        )
+        session.add(source)
+        session.commit()
+        
+        logger.info(f"New RSS source added: {name} ({url})")
+        flash(f'RSS feed "{name}" added successfully', 'success')
+        return redirect(url_for('main.admin_sources'))
+        
+    except Exception as e:
+        logger.error(f"Error adding RSS source: {e}")
+        session.rollback()
+        flash('Error adding RSS feed', 'error')
+        return redirect(url_for('main.admin_sources'))
+    finally:
+        session.close()
+
+
+@main.route('/admin/sources/<source_id>/pause', methods=['POST'])
+def admin_pause_source(source_id: str):
+    """Pause an active RSS feed source."""
+    session = SessionLocal()
+    try:
+        source_uuid = UUID(source_id)
+        source = session.query(Source).filter(Source.id == source_uuid).first()
+        if not source:
+            return jsonify({'error': 'Source not found'}), 404
+        
+        source.is_active = False
+        session.commit()
+        
+        logger.info(f"RSS source paused: {source.name}")
+        return jsonify({'success': True, 'is_active': False})
+    except Exception as e:
+        session.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        session.close()
+
+
+@main.route('/admin/sources/<source_id>/resume', methods=['POST'])
+def admin_resume_source(source_id: str):
+    """Resume a paused RSS feed source."""
+    session = SessionLocal()
+    try:
+        source_uuid = UUID(source_id)
+        source = session.query(Source).filter(Source.id == source_uuid).first()
+        if not source:
+            return jsonify({'error': 'Source not found'}), 404
+        
+        source.is_active = True
+        session.commit()
+        
+        logger.info(f"RSS source resumed: {source.name}")
+        return jsonify({'success': True, 'is_active': True})
+    except Exception as e:
+        session.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        session.close()
+
+
+@main.route('/admin/sources/<source_id>/delete', methods=['POST'])
+def admin_delete_source(source_id: str):
+    """
+    Delete an RSS feed source.
+    
+    Fails if source has associated articles (FK constraint).
+    """
+    session = SessionLocal()
+    try:
+        source_uuid = UUID(source_id)
+        source = session.query(Source).filter(Source.id == source_uuid).first()
+        if not source:
+            return jsonify({'error': 'Source not found'}), 404
+        
+        # Check for associated articles
+        article_count = session.query(Article).filter(Article.source_id == source_uuid).count()
+        if article_count > 0:
+            return jsonify({
+                'error': f'Cannot delete source with {article_count} existing articles. Pause it instead.'
+            }), 400
+        
+        source_name = source.name
+        session.delete(source)
+        session.commit()
+        
+        logger.info(f"RSS source deleted: {source_name}")
+        return jsonify({'success': True})
     except Exception as e:
         session.rollback()
         return jsonify({'error': str(e)}), 500

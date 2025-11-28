@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RSS Feed Management - Plain Press</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    h1 { margin: 0 0 10px; color: #2d5016; }
+    .subtitle { color: #666; margin-bottom: 20px; }
+    .subtitle a { color: #2d5016; }
+
+    .stats {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .stat-box {
+      background: white;
+      padding: 15px 20px;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .stat-box strong { font-size: 24px; color: #2d5016; }
+    .stat-box span { display: block; color: #666; font-size: 12px; }
+
+    .add-form {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .add-form h2 { margin: 0 0 15px; font-size: 16px; color: #333; }
+    .form-row {
+      display: flex;
+      gap: 15px;
+      flex-wrap: wrap;
+      align-items: flex-end;
+    }
+    .form-group { flex: 1; min-width: 200px; }
+    .form-group label {
+      display: block;
+      font-weight: 500;
+      margin-bottom: 5px;
+      font-size: 13px;
+      color: #555;
+    }
+    .form-group input, .form-group textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    .form-group input:focus, .form-group textarea:focus {
+      outline: none;
+      border-color: #2d5016;
+    }
+    .form-group.url-group { flex: 2; }
+    .form-group.notes-group { flex: 1.5; }
+    .add-form button {
+      padding: 10px 20px;
+      background: #2d5016;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    .add-form button:hover { background: #1e3a0f; }
+
+    .flash-messages {
+      margin-bottom: 20px;
+    }
+    .flash {
+      padding: 12px 15px;
+      border-radius: 4px;
+      margin-bottom: 10px;
+    }
+    .flash-error { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
+    .flash-success { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+
+    .filters {
+      background: white;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      display: flex;
+      gap: 15px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .filters label { font-weight: 500; }
+    .filters select {
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    .filters button {
+      padding: 8px 16px;
+      background: #2d5016;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .filters button:hover { background: #1e3a0f; }
+
+    table {
+      width: 100%;
+      background: white;
+      border-collapse: collapse;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    th, td {
+      padding: 12px 15px;
+      text-align: left;
+      border-bottom: 1px solid #eee;
+    }
+    th {
+      background: #2d5016;
+      color: white;
+      font-weight: 500;
+      position: sticky;
+      top: 0;
+    }
+    tr:hover { background: #f9f9f9; }
+
+    .status-badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .status-active { background: #e8f5e9; color: #2e7d32; }
+    .status-paused { background: #fff3e0; color: #ef6c00; }
+
+    .trust-score {
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    .trust-high { background: #e8f5e9; color: #2e7d32; }
+    .trust-med { background: #fff3e0; color: #ef6c00; }
+    .trust-low { background: #ffebee; color: #c62828; }
+
+    .feed-name {
+      font-weight: 500;
+      color: #333;
+    }
+    .feed-url {
+      font-size: 12px;
+      color: #666;
+      max-width: 300px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .feed-url a { color: #666; text-decoration: none; }
+    .feed-url a:hover { color: #2d5016; text-decoration: underline; }
+
+    .metrics {
+      font-size: 12px;
+      color: #555;
+    }
+    .metrics span { margin-right: 12px; }
+    .metrics .approved { color: #2e7d32; }
+    .metrics .rejected { color: #c62828; }
+
+    .last-fetched {
+      font-size: 12px;
+      color: #666;
+      white-space: nowrap;
+    }
+
+    .notes-cell {
+      max-width: 150px;
+      font-size: 12px;
+      color: #666;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .actions button {
+      padding: 5px 10px;
+      margin-right: 5px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      background: white;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .actions button:hover { background: #f0f0f0; }
+    .actions .btn-pause { color: #ef6c00; border-color: #ef6c00; }
+    .actions .btn-pause:hover { background: #fff3e0; }
+    .actions .btn-resume { color: #2e7d32; border-color: #2e7d32; }
+    .actions .btn-resume:hover { background: #e8f5e9; }
+    .actions .btn-delete { color: #c62828; border-color: #c62828; }
+    .actions .btn-delete:hover { background: #ffebee; }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px;
+      color: #666;
+    }
+    .empty-state p { margin: 10px 0; }
+
+    .loading {
+      opacity: 0.5;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>RSS Feed Management</h1>
+  <p class="subtitle">Manage content sources for article discovery. <a href="/admin/articles">← Back to Articles</a></p>
+
+  <div class="stats">
+    <div class="stat-box">
+      <strong>{{ stats.total }}</strong>
+      <span>Total Feeds</span>
+    </div>
+    <div class="stat-box">
+      <strong>{{ stats.active }}</strong>
+      <span>Active</span>
+    </div>
+    <div class="stat-box">
+      <strong>{{ stats.paused }}</strong>
+      <span>Paused</span>
+    </div>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="flash-messages">
+        {% for category, message in messages %}
+          <div class="flash flash-{{ category }}">{{ message }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <div class="add-form">
+    <h2>Add New RSS Feed</h2>
+    <form method="POST" action="/admin/sources">
+      <div class="form-row">
+        <div class="form-group">
+          <label for="name">Feed Name *</label>
+          <input type="text" id="name" name="name" required placeholder="e.g., BBC Science">
+        </div>
+        <div class="form-group url-group">
+          <label for="url">RSS Feed URL *</label>
+          <input type="url" id="url" name="url" required placeholder="https://example.com/feed.xml">
+        </div>
+        <div class="form-group notes-group">
+          <label for="notes">Notes (optional)</label>
+          <input type="text" id="notes" name="notes" placeholder="Description or category">
+        </div>
+        <button type="submit">Add Feed</button>
+      </div>
+    </form>
+  </div>
+
+  <form class="filters" method="GET" action="/admin/sources">
+    <label>Status:</label>
+    <select name="status">
+      <option value="">All</option>
+      <option value="active" {{ 'selected' if filters.status == 'active' else '' }}>Active</option>
+      <option value="paused" {{ 'selected' if filters.status == 'paused' else '' }}>Paused</option>
+    </select>
+
+    <label>Sort by:</label>
+    <select name="sort">
+      <option value="name" {{ 'selected' if filters.sort == 'name' else '' }}>Name</option>
+      <option value="trust_score" {{ 'selected' if filters.sort == 'trust_score' else '' }}>Trust Score</option>
+      <option value="total_surfaced" {{ 'selected' if filters.sort == 'total_surfaced' else '' }}>Articles Surfaced</option>
+      <option value="last_fetched" {{ 'selected' if filters.sort == 'last_fetched' else '' }}>Last Fetched</option>
+    </select>
+
+    <button type="submit">Apply</button>
+    <a href="/admin/sources" style="padding: 8px 12px; color: #666;">Clear</a>
+  </form>
+
+  {% if sources %}
+  <table>
+    <thead>
+      <tr>
+        <th>Status</th>
+        <th>Name / URL</th>
+        <th>Trust</th>
+        <th>Performance</th>
+        <th>Last Fetched</th>
+        <th>Notes</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for source in sources %}
+      <tr id="row-{{ source.id }}">
+        <td>
+          <span class="status-badge status-{{ 'active' if source.is_active else 'paused' }}">
+            {{ 'Active' if source.is_active else 'Paused' }}
+          </span>
+        </td>
+        <td>
+          <div class="feed-name">{{ source.name }}</div>
+          <div class="feed-url"><a href="{{ source.url }}" target="_blank" title="{{ source.url }}">{{ source.url }}</a></div>
+        </td>
+        <td>
+          <span class="trust-score {% if source.trust_score >= 0.7 %}trust-high{% elif source.trust_score >= 0.4 %}trust-med{% else %}trust-low{% endif %}">
+            {{ "%.2f"|format(source.trust_score) }}
+          </span>
+        </td>
+        <td class="metrics">
+          <span>{{ source.total_surfaced }} surfaced</span>
+          <span class="approved">{{ source.total_approved }} ✓</span>
+          <span class="rejected">{{ source.total_rejected }} ✗</span>
+        </td>
+        <td class="last-fetched">
+          {{ source.last_fetched.strftime('%b %d, %H:%M') if source.last_fetched else 'Never' }}
+        </td>
+        <td class="notes-cell" title="{{ source.notes or '' }}">{{ source.notes or '-' }}</td>
+        <td class="actions">
+          {% if source.is_active %}
+            <button class="btn-pause" onclick="pauseSource('{{ source.id }}')" title="Pause fetching">Pause</button>
+          {% else %}
+            <button class="btn-resume" onclick="resumeSource('{{ source.id }}')" title="Resume fetching">Resume</button>
+          {% endif %}
+          <button class="btn-delete" onclick="deleteSource('{{ source.id }}', '{{ source.name|e }}')" title="Delete feed">Delete</button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <p><strong>No RSS feeds found</strong></p>
+    <p>Add your first RSS feed using the form above.</p>
+  </div>
+  {% endif %}
+
+  <script>
+    async function pauseSource(id) {
+      const row = document.getElementById('row-' + id);
+      row.classList.add('loading');
+      
+      try {
+        const response = await fetch('/admin/sources/' + id + '/pause', { method: 'POST' });
+        const data = await response.json();
+        
+        if (response.ok) {
+          // Update UI
+          const badge = row.querySelector('.status-badge');
+          badge.className = 'status-badge status-paused';
+          badge.textContent = 'Paused';
+          
+          // Swap button
+          const actionsCell = row.querySelector('.actions');
+          const pauseBtn = actionsCell.querySelector('.btn-pause');
+          if (pauseBtn) {
+            pauseBtn.className = 'btn-resume';
+            pauseBtn.textContent = 'Resume';
+            pauseBtn.onclick = () => resumeSource(id);
+          }
+        } else {
+          alert('Error: ' + (data.error || 'Failed to pause feed'));
+        }
+      } catch (e) {
+        alert('Error pausing feed');
+      } finally {
+        row.classList.remove('loading');
+      }
+    }
+    
+    async function resumeSource(id) {
+      const row = document.getElementById('row-' + id);
+      row.classList.add('loading');
+      
+      try {
+        const response = await fetch('/admin/sources/' + id + '/resume', { method: 'POST' });
+        const data = await response.json();
+        
+        if (response.ok) {
+          // Update UI
+          const badge = row.querySelector('.status-badge');
+          badge.className = 'status-badge status-active';
+          badge.textContent = 'Active';
+          
+          // Swap button
+          const actionsCell = row.querySelector('.actions');
+          const resumeBtn = actionsCell.querySelector('.btn-resume');
+          if (resumeBtn) {
+            resumeBtn.className = 'btn-pause';
+            resumeBtn.textContent = 'Pause';
+            resumeBtn.onclick = () => pauseSource(id);
+          }
+        } else {
+          alert('Error: ' + (data.error || 'Failed to resume feed'));
+        }
+      } catch (e) {
+        alert('Error resuming feed');
+      } finally {
+        row.classList.remove('loading');
+      }
+    }
+    
+    async function deleteSource(id, name) {
+      if (!confirm('Delete RSS feed "' + name + '"?\n\nThis action cannot be undone.')) {
+        return;
+      }
+      
+      const row = document.getElementById('row-' + id);
+      row.classList.add('loading');
+      
+      try {
+        const response = await fetch('/admin/sources/' + id + '/delete', { method: 'POST' });
+        const data = await response.json();
+        
+        if (response.ok) {
+          row.remove();
+          // Update stats
+          location.reload();
+        } else {
+          alert('Error: ' + (data.error || 'Failed to delete feed'));
+        }
+      } catch (e) {
+        alert('Error deleting feed');
+      } finally {
+        row.classList.remove('loading');
+      }
+    }
+  </script>
+</body>
+</html>
+
