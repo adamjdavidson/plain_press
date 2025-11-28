@@ -86,6 +86,8 @@ This repository currently contains only design documentation. Implementation has
 ## Active Technologies
 - Python 3.11+ + SQLAlchemy 2.0+, Alembic 1.12+, psycopg2-binary 2.9+ (PostgreSQL adapter) (001-database-schema)
 - PostgreSQL 15+ on Railway (with automated backups) (001-database-schema)
+- Python 3.11 (per existing codebase) + Flask, SQLAlchemy, feedparser (all existing) (005-rss-feed-management)
+- PostgreSQL (existing Source model) (005-rss-feed-management)
 
 ## Recent Changes
 - 001-database-schema: Added Python 3.11+ + SQLAlchemy 2.0+, Alembic 1.12+, psycopg2-binary 2.9+ (PostgreSQL adapter)
