@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 import feedparser
+import httpx
 from flask import Blueprint, render_template, request, abort, jsonify, flash, redirect, url_for
 from sqlalchemy import func
 from werkzeug.exceptions import HTTPException
@@ -574,6 +575,8 @@ def validate_rss_url(url: str) -> tuple[bool, str]:
     """
     Validate that a URL points to a valid RSS/Atom feed.
     
+    Uses httpx to fetch with timeout, then feedparser to validate content.
+    
     Args:
         url: URL to validate
         
@@ -581,12 +584,20 @@ def validate_rss_url(url: str) -> tuple[bool, str]:
         Tuple of (is_valid, error_message)
     """
     try:
-        result = feedparser.parse(url, request_headers={'User-Agent': RSS_USER_AGENT})
+        # Fetch with timeout using httpx (feedparser doesn't support timeout directly)
+        response = httpx.get(
+            url,
+            timeout=RSS_VALIDATION_TIMEOUT,
+            follow_redirects=True,
+            headers={
+                'User-Agent': RSS_USER_AGENT,
+                'Accept': 'application/rss+xml, application/atom+xml, application/xml, text/xml',
+            }
+        )
+        response.raise_for_status()
         
-        # Check for HTTP errors
-        status = getattr(result, 'status', 200)
-        if isinstance(status, int) and status >= 400:
-            return False, f"URL returned HTTP {status}"
+        # Parse the fetched content
+        result = feedparser.parse(response.content)
         
         # Check for parsing errors
         if result.bozo:
@@ -600,9 +611,15 @@ def validate_rss_url(url: str) -> tuple[bool, str]:
             return False, "URL does not contain a valid RSS/Atom feed"
         
         return True, ""
-        
-    except Exception as e:
+    
+    except httpx.TimeoutException:
+        return False, f"Timeout: feed took longer than {RSS_VALIDATION_TIMEOUT} seconds to respond"
+    except httpx.HTTPStatusError as e:
+        return False, f"URL returned HTTP {e.response.status_code}"
+    except httpx.RequestError as e:
         return False, f"Error fetching URL: {str(e)}"
+    except Exception as e:
+        return False, f"Error validating feed: {str(e)}"
 
 
 @main.route('/admin/sources')
@@ -741,7 +758,10 @@ def admin_pause_source(source_id: str):
     session = SessionLocal()
     try:
         source_uuid = UUID(source_id)
-        source = session.query(Source).filter(Source.id == source_uuid).first()
+        source = session.query(Source).filter(
+            Source.id == source_uuid,
+            Source.type == SourceType.RSS
+        ).first()
         if not source:
             return jsonify({'error': 'Source not found'}), 404
         
@@ -763,7 +783,10 @@ def admin_resume_source(source_id: str):
     session = SessionLocal()
     try:
         source_uuid = UUID(source_id)
-        source = session.query(Source).filter(Source.id == source_uuid).first()
+        source = session.query(Source).filter(
+            Source.id == source_uuid,
+            Source.type == SourceType.RSS
+        ).first()
         if not source:
             return jsonify({'error': 'Source not found'}), 404
         
@@ -789,7 +812,10 @@ def admin_delete_source(source_id: str):
     session = SessionLocal()
     try:
         source_uuid = UUID(source_id)
-        source = session.query(Source).filter(Source.id == source_uuid).first()
+        source = session.query(Source).filter(
+            Source.id == source_uuid,
+            Source.type == SourceType.RSS
+        ).first()
         if not source:
             return jsonify({'error': 'Source not found'}), 404
         

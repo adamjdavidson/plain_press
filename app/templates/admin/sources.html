@@ -236,11 +236,11 @@
       <span>Total Feeds</span>
     </div>
     <div class="stat-box">
-      <strong>{{ stats.active }}</strong>
+      <strong id="stat-active">{{ stats.active }}</strong>
       <span>Active</span>
     </div>
     <div class="stat-box">
-      <strong>{{ stats.paused }}</strong>
+      <strong id="stat-paused">{{ stats.paused }}</strong>
       <span>Paused</span>
     </div>
   </div>
@@ -377,6 +377,12 @@
             pauseBtn.textContent = 'Resume';
             pauseBtn.onclick = () => resumeSource(id);
           }
+          
+          // Update stats counters
+          const activeEl = document.getElementById('stat-active');
+          const pausedEl = document.getElementById('stat-paused');
+          activeEl.textContent = parseInt(activeEl.textContent) - 1;
+          pausedEl.textContent = parseInt(pausedEl.textContent) + 1;
         } else {
           alert('Error: ' + (data.error || 'Failed to pause feed'));
         }
@@ -409,6 +415,12 @@
             resumeBtn.textContent = 'Pause';
             resumeBtn.onclick = () => pauseSource(id);
           }
+          
+          // Update stats counters
+          const activeEl = document.getElementById('stat-active');
+          const pausedEl = document.getElementById('stat-paused');
+          activeEl.textContent = parseInt(activeEl.textContent) + 1;
+          pausedEl.textContent = parseInt(pausedEl.textContent) - 1;
         } else {
           alert('Error: ' + (data.error || 'Failed to resume feed'));
         }
