@@ -40,6 +40,7 @@ STRUCTURED_OUTPUTS_BETA = os.environ.get("ANTHROPIC_STRUCTURED_OUTPUTS_BETA", "s
 TEMPERATURE = 0  # Deterministic for consistency
 BATCH_SIZE = int(os.environ.get('BATCH_SIZE', '10'))
 FILTER_THRESHOLD = float(os.environ.get('FILTER_SCORE_THRESHOLD', '0.5'))
+WOW_SCORE_THRESHOLD = float(os.environ.get('WOW_SCORE_THRESHOLD', '0.4'))
 MAX_RETRIES = 2
 RETRY_BASE_DELAY = 2.0
 
@@ -70,6 +71,8 @@ ARTICLE_RESULT_SCHEMA = {
                         "type": "string",
                         "enum": ["news_article", "event_listing", "directory_page", "about_page", "other_non_news"]
                     },
+                    "wow_score": {"type": "number"},
+                    "wow_notes": {"type": "string"},
                     "topics": {
                         "type": "array",
                         "items": {
@@ -83,7 +86,7 @@ ARTICLE_RESULT_SCHEMA = {
                     "amish_angle": {"type": "string"},
                     "filter_notes": {"type": "string"}
                 },
-                "required": ["index", "content_type", "topics", "filter_score", "summary", "amish_angle", "filter_notes"],
+                "required": ["index", "content_type", "wow_score", "wow_notes", "topics", "filter_score", "summary", "amish_angle", "filter_notes"],
                 "additionalProperties": False
             }
         }
@@ -106,14 +109,32 @@ Before evaluating editorial fit, you MUST first determine what type of content t
 - "other_non_news": Anything else that isn't journalism - recipes, how-to guides, opinion pieces without news, promotional content
 
 CRITICAL RULE: Only content_type="news_article" should receive a filter_score above 0.0.
-All other content types MUST receive filter_score: 0.0 regardless of how wholesome or relevant the topic seems.
+All other content types MUST receive filter_score: 0.0 and wow_score: 0.0 regardless of how wholesome or relevant the topic seems.
 
 A news article MUST have:
 - A specific event or occurrence that happened (not something that WILL happen)
 - A narrative structure (not just a list of items)
 - Journalistic reporting (not marketing, event promotion, or organizational info)
 
-EDITORIAL GUIDELINES (apply ONLY to news_article content):
+STEP 2 - WOW FACTOR EVALUATION (apply to news_article only):
+Before scoring editorial fit, evaluate if this story would make someone say "wow!"
+
+A story has high wow factor if it is:
+- SURPRISING: Unexpected, not routine or predictable news
+- DELIGHTFUL: Produces a smile, warmth, sense of wonder
+- UNUSUAL: Quirky, odd, uncommon - stands out from typical news
+
+Score wow_score 0.0-1.0:
+- 0.8-1.0: Genuinely remarkable - "I have to share this"
+- 0.5-0.7: Interesting - "That's nice to know"
+- 0.2-0.4: Mildly interesting - "Okay, sure"
+- 0.0-0.2: Boring - routine announcement, press release, mundane event
+
+In wow_notes, explain briefly why this story is or isn't "wow-worthy."
+A story about a new traffic light is NOT wow-worthy.
+A story about a singing traffic light that plays folk tunes IS wow-worthy.
+
+STEP 3 - EDITORIAL GUIDELINES (apply ONLY to news_article content):
 
 The ideal story is a "delightful oddity" - something surprising, wholesome, and relatable that would make an Amish grandmother smile.
 
@@ -136,6 +157,8 @@ community, small_town, food, cooking, nature, weather, crafts, traditions, healt
 For EACH article, provide:
 - index: the article index from the input
 - content_type: one of news_article, event_listing, directory_page, about_page, other_non_news
+- wow_score: float 0.0-1.0 for "wow factor" (0.0 = boring, 1.0 = remarkable) - MUST be 0.0 if content_type is not news_article
+- wow_notes: brief explanation of wow_score (why surprising/delightful/unusual, or why boring/mundane)
 - topics: array of 1-3 topic categories that apply (from the list above)
 - filter_score: float 0.0-1.0 (1.0 = perfect fit, 0.0 = reject) - MUST be 0.0 if content_type is not news_article
 - summary: 2-3 sentence summary suitable for Amish readers (simple language, 8th grade level)
@@ -343,23 +366,39 @@ def filter_all_articles(articles: list[dict]) -> tuple[list[dict], list[dict], d
         for j, article in enumerate(batch):
             result = results_by_index.get(j, {})
             content_type = result.get('content_type', 'other_non_news')
+            wow_score = result.get('wow_score', 0.0)
+            wow_notes = result.get('wow_notes', '')
+            
             article['content_type'] = content_type
+            article['wow_score'] = wow_score
             article['topics'] = result.get('topics', [])
             article['filter_score'] = result.get('filter_score', 0.0)
             article['summary'] = result.get('summary', '')
             article['amish_angle'] = result.get('amish_angle', '')
             article['filter_notes'] = result.get('filter_notes', 'No result')
 
-            # Enforce: non-news content MUST have score 0
+            # Gate 1: Content type check - non-news content MUST be rejected
             if content_type != 'news_article':
                 article['filter_score'] = 0.0
-                article['filter_notes'] = f"Rejected: content_type={content_type}. {article['filter_notes']}"
+                article['filter_notes'] = f"Rejected: content_type={content_type} | {article['filter_notes']}"
+                discarded.append(article)
+                stats['total_discarded'] += 1
+                continue
+            
+            # Gate 2: Wow score check - boring news MUST be rejected
+            if wow_score < WOW_SCORE_THRESHOLD:
+                article['filter_score'] = 0.0
+                article['filter_notes'] = f"Rejected: wow_score={wow_score:.2f} (threshold: {WOW_SCORE_THRESHOLD}) | {wow_notes}"
+                discarded.append(article)
+                stats['total_discarded'] += 1
+                continue
 
-            # Apply threshold
+            # Gate 3: Editorial filter score threshold
             if article['filter_score'] >= FILTER_THRESHOLD:
                 kept.append(article)
                 stats['total_kept'] += 1
             else:
+                article['filter_notes'] = f"Rejected: filter_score={article['filter_score']:.2f} (threshold: {FILTER_THRESHOLD}) | {article['filter_notes']}"
                 discarded.append(article)
                 stats['total_discarded'] += 1
         

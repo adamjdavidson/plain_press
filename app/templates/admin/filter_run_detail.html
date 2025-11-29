@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pipeline Run {{ run.id[:8] }} - Plain Press</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    h1 { margin: 0 0 10px; color: #2d5016; }
+    h2 { margin: 30px 0 15px; color: #333; font-size: 18px; }
+    .nav-links {
+      margin-bottom: 20px;
+    }
+    .nav-links a {
+      color: #2d5016;
+      margin-right: 15px;
+    }
+
+    .run-info {
+      background: white;
+      padding: 15px 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .run-info span { margin-right: 20px; color: #666; }
+    .run-info strong { color: #333; }
+
+    .status {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .status-running { background: #fff3e0; color: #ef6c00; }
+    .status-completed { background: #e8f5e9; color: #2e7d32; }
+    .status-failed { background: #ffebee; color: #c62828; }
+
+    /* Funnel visualization */
+    .funnel {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 30px;
+      background: white;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      overflow-x: auto;
+    }
+    .funnel-stage {
+      text-align: center;
+      min-width: 120px;
+    }
+    .funnel-stage .count {
+      font-size: 32px;
+      font-weight: 700;
+      color: #2d5016;
+    }
+    .funnel-stage .label {
+      font-size: 12px;
+      color: #666;
+      margin-top: 5px;
+    }
+    .funnel-stage .rate {
+      font-size: 11px;
+      color: #999;
+      margin-top: 2px;
+    }
+    .funnel-arrow {
+      font-size: 24px;
+      color: #ccc;
+    }
+    .funnel-rejected {
+      font-size: 12px;
+      color: #c62828;
+      margin-top: 5px;
+    }
+
+    /* Filter sections */
+    .filter-section {
+      background: white;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+    .filter-header {
+      background: #f8f9fa;
+      padding: 15px 20px;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .filter-header h3 {
+      margin: 0;
+      font-size: 16px;
+      color: #333;
+    }
+    .filter-stats {
+      display: flex;
+      gap: 15px;
+      font-size: 13px;
+    }
+    .filter-stats .passed { color: #2e7d32; }
+    .filter-stats .rejected { color: #c62828; }
+    .filter-stats a { color: #2d5016; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      padding: 10px 15px;
+      text-align: left;
+      border-bottom: 1px solid #eee;
+    }
+    th {
+      background: #f8f9fa;
+      font-weight: 500;
+      font-size: 12px;
+      color: #666;
+      text-transform: uppercase;
+    }
+    tr:hover { background: #fafafa; }
+
+    .decision {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .decision-pass { background: #e8f5e9; color: #2e7d32; }
+    .decision-reject { background: #ffebee; color: #c62828; }
+
+    .score {
+      font-weight: 600;
+    }
+    .score-high { color: #2e7d32; }
+    .score-med { color: #ef6c00; }
+    .score-low { color: #c62828; }
+
+    .reasoning {
+      max-width: 400px;
+      font-size: 12px;
+      color: #666;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .article-link {
+      color: #333;
+      text-decoration: none;
+      max-width: 300px;
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .article-link:hover { color: #2d5016; }
+
+    .tabs {
+      display: flex;
+      gap: 5px;
+      margin-bottom: -1px;
+    }
+    .tab {
+      padding: 8px 16px;
+      background: #f0f0f0;
+      border: 1px solid #ddd;
+      border-bottom: none;
+      border-radius: 4px 4px 0 0;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .tab.active {
+      background: white;
+      border-bottom: 1px solid white;
+    }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+  </style>
+</head>
+<body>
+  <h1>Pipeline Run Details</h1>
+  <div class="nav-links">
+    <a href="/admin/filter-runs">← All Runs</a>
+    <a href="/admin/articles">Article Admin</a>
+  </div>
+
+  <div class="run-info">
+    <span>Run ID: <strong>{{ run.id[:8] }}...</strong></span>
+    <span>Started: <strong>{{ run.started_at.strftime('%b %d, %Y %H:%M:%S') }}</strong></span>
+    {% if run.completed_at %}
+    <span>Completed: <strong>{{ run.completed_at.strftime('%H:%M:%S') }}</strong></span>
+    {% endif %}
+    <span class="status status-{{ run.status.value }}">{{ run.status.value }}</span>
+    {% if run.error_message %}
+    <br><span style="color: #c62828; margin-top: 10px; display: block;">Error: {{ run.error_message }}</span>
+    {% endif %}
+  </div>
+
+  <!-- Funnel Visualization -->
+  <div class="funnel">
+    <div class="funnel-stage">
+      <div class="count">{{ run.input_count }}</div>
+      <div class="label">Input Articles</div>
+    </div>
+    
+    <div class="funnel-arrow">→</div>
+    
+    <div class="funnel-stage">
+      <div class="count">{{ run.filter1_pass_count or 0 }}</div>
+      <div class="label">News Check</div>
+      <div class="rate">{{ "%.0f"|format((run.filter1_pass_count or 0) / run.input_count * 100) if run.input_count > 0 else 0 }}% pass</div>
+      <div class="funnel-rejected">-{{ run.input_count - (run.filter1_pass_count or 0) }} rejected</div>
+    </div>
+    
+    <div class="funnel-arrow">→</div>
+    
+    <div class="funnel-stage">
+      <div class="count">{{ run.filter2_pass_count or 0 }}</div>
+      <div class="label">Wow Factor</div>
+      <div class="rate">{{ "%.0f"|format((run.filter2_pass_count or 0) / (run.filter1_pass_count or 1) * 100) if (run.filter1_pass_count or 0) > 0 else 0 }}% pass</div>
+      <div class="funnel-rejected">-{{ (run.filter1_pass_count or 0) - (run.filter2_pass_count or 0) }} rejected</div>
+    </div>
+    
+    <div class="funnel-arrow">→</div>
+    
+    <div class="funnel-stage">
+      <div class="count">{{ run.filter3_pass_count or 0 }}</div>
+      <div class="label">Values Fit</div>
+      <div class="rate">{{ "%.0f"|format((run.filter3_pass_count or 0) / (run.filter2_pass_count or 1) * 100) if (run.filter2_pass_count or 0) > 0 else 0 }}% pass</div>
+      <div class="funnel-rejected">-{{ (run.filter2_pass_count or 0) - (run.filter3_pass_count or 0) }} rejected</div>
+    </div>
+    
+    <div class="funnel-arrow">=</div>
+    
+    <div class="funnel-stage">
+      <div class="count" style="color: #2e7d32;">{{ run.filter3_pass_count or 0 }}</div>
+      <div class="label"><strong>Final Output</strong></div>
+      <div class="rate">{{ "%.1f"|format((run.filter3_pass_count or 0) / run.input_count * 100) if run.input_count > 0 else 0 }}% overall</div>
+    </div>
+  </div>
+
+  <!-- Filter 1: News Check -->
+  <div class="filter-section">
+    <div class="filter-header">
+      <h3>Filter 1: News Check</h3>
+      <div class="filter-stats">
+        <span class="passed">✓ {{ funnel.news_check.passed }} passed</span>
+        <span class="rejected">✗ {{ funnel.news_check.rejected }} rejected</span>
+        <a href="/admin/filter-runs/{{ run.id }}/rejections/news_check">View Rejection Patterns →</a>
+      </div>
+    </div>
+    <div class="tabs">
+      <div class="tab active" onclick="showTab(this, 'f1-rejected')">Rejected ({{ funnel.news_check.rejected }})</div>
+      <div class="tab" onclick="showTab(this, 'f1-passed')">Passed ({{ funnel.news_check.passed }})</div>
+    </div>
+    <div id="f1-rejected" class="tab-content active">
+      <table>
+        <thead>
+          <tr>
+            <th>Article</th>
+            <th>Category</th>
+            <th>Reasoning</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for trace in traces.news_check if trace.decision == 'reject' %}
+          <tr onclick="window.location='/admin/filter-runs/{{ run.id }}/article/{{ trace.article_url | urlencode }}'">
+            <td><a class="article-link" href="{{ trace.article_url }}" target="_blank" title="{{ trace.article_title }}">{{ trace.article_title[:60] }}{% if trace.article_title|length > 60 %}...{% endif %}</a></td>
+            <td><span class="decision decision-reject">{{ trace.reasoning.split(':')[0] if ':' in trace.reasoning else 'non-news' }}</span></td>
+            <td class="reasoning" title="{{ trace.reasoning }}">{{ trace.reasoning }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="3" style="text-align: center; color: #666;">No rejected articles</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div id="f1-passed" class="tab-content">
+      <table>
+        <thead>
+          <tr>
+            <th>Article</th>
+            <th>Decision</th>
+            <th>Reasoning</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for trace in traces.news_check if trace.decision == 'pass' %}
+          <tr onclick="window.location='/admin/filter-runs/{{ run.id }}/article/{{ trace.article_url | urlencode }}'">
+            <td><a class="article-link" href="{{ trace.article_url }}" target="_blank" title="{{ trace.article_title }}">{{ trace.article_title[:60] }}{% if trace.article_title|length > 60 %}...{% endif %}</a></td>
+            <td><span class="decision decision-pass">news</span></td>
+            <td class="reasoning" title="{{ trace.reasoning }}">{{ trace.reasoning }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="3" style="text-align: center; color: #666;">No passed articles</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Filter 2: Wow Factor -->
+  <div class="filter-section">
+    <div class="filter-header">
+      <h3>Filter 2: Wow Factor</h3>
+      <div class="filter-stats">
+        <span class="passed">✓ {{ funnel.wow_factor.passed }} passed</span>
+        <span class="rejected">✗ {{ funnel.wow_factor.rejected }} rejected</span>
+        <a href="/admin/filter-runs/{{ run.id }}/rejections/wow_factor">View Rejection Patterns →</a>
+      </div>
+    </div>
+    <div class="tabs">
+      <div class="tab active" onclick="showTab(this, 'f2-rejected')">Rejected ({{ funnel.wow_factor.rejected }})</div>
+      <div class="tab" onclick="showTab(this, 'f2-passed')">Passed ({{ funnel.wow_factor.passed }})</div>
+    </div>
+    <div id="f2-rejected" class="tab-content active">
+      <table>
+        <thead>
+          <tr>
+            <th>Article</th>
+            <th>Score</th>
+            <th>Reasoning</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for trace in traces.wow_factor if trace.decision == 'reject' %}
+          <tr onclick="window.location='/admin/filter-runs/{{ run.id }}/article/{{ trace.article_url | urlencode }}'">
+            <td><a class="article-link" href="{{ trace.article_url }}" target="_blank" title="{{ trace.article_title }}">{{ trace.article_title[:60] }}{% if trace.article_title|length > 60 %}...{% endif %}</a></td>
+            <td><span class="score score-low">{{ "%.2f"|format(trace.score or 0) }}</span></td>
+            <td class="reasoning" title="{{ trace.reasoning }}">{{ trace.reasoning }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="3" style="text-align: center; color: #666;">No rejected articles</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div id="f2-passed" class="tab-content">
+      <table>
+        <thead>
+          <tr>
+            <th>Article</th>
+            <th>Score</th>
+            <th>Reasoning</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for trace in traces.wow_factor if trace.decision == 'pass' %}
+          <tr onclick="window.location='/admin/filter-runs/{{ run.id }}/article/{{ trace.article_url | urlencode }}'">
+            <td><a class="article-link" href="{{ trace.article_url }}" target="_blank" title="{{ trace.article_title }}">{{ trace.article_title[:60] }}{% if trace.article_title|length > 60 %}...{% endif %}</a></td>
+            <td><span class="score {% if trace.score >= 0.7 %}score-high{% elif trace.score >= 0.5 %}score-med{% else %}score-low{% endif %}">{{ "%.2f"|format(trace.score or 0) }}</span></td>
+            <td class="reasoning" title="{{ trace.reasoning }}">{{ trace.reasoning }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="3" style="text-align: center; color: #666;">No passed articles</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Filter 3: Values Fit -->
+  <div class="filter-section">
+    <div class="filter-header">
+      <h3>Filter 3: Values Fit</h3>
+      <div class="filter-stats">
+        <span class="passed">✓ {{ funnel.values_fit.passed }} passed</span>
+        <span class="rejected">✗ {{ funnel.values_fit.rejected }} rejected</span>
+        <a href="/admin/filter-runs/{{ run.id }}/rejections/values_fit">View Rejection Patterns →</a>
+      </div>
+    </div>
+    <div class="tabs">
+      <div class="tab active" onclick="showTab(this, 'f3-rejected')">Rejected ({{ funnel.values_fit.rejected }})</div>
+      <div class="tab" onclick="showTab(this, 'f3-passed')">Passed ({{ funnel.values_fit.passed }})</div>
+    </div>
+    <div id="f3-rejected" class="tab-content active">
+      <table>
+        <thead>
+          <tr>
+            <th>Article</th>
+            <th>Score</th>
+            <th>Reasoning</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for trace in traces.values_fit if trace.decision == 'reject' %}
+          <tr onclick="window.location='/admin/filter-runs/{{ run.id }}/article/{{ trace.article_url | urlencode }}'">
+            <td><a class="article-link" href="{{ trace.article_url }}" target="_blank" title="{{ trace.article_title }}">{{ trace.article_title[:60] }}{% if trace.article_title|length > 60 %}...{% endif %}</a></td>
+            <td><span class="score score-low">{{ "%.2f"|format(trace.score or 0) }}</span></td>
+            <td class="reasoning" title="{{ trace.reasoning }}">{{ trace.reasoning }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="3" style="text-align: center; color: #666;">No rejected articles</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div id="f3-passed" class="tab-content">
+      <table>
+        <thead>
+          <tr>
+            <th>Article</th>
+            <th>Score</th>
+            <th>Reasoning</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for trace in traces.values_fit if trace.decision == 'pass' %}
+          <tr onclick="window.location='/admin/filter-runs/{{ run.id }}/article/{{ trace.article_url | urlencode }}'">
+            <td><a class="article-link" href="{{ trace.article_url }}" target="_blank" title="{{ trace.article_title }}">{{ trace.article_title[:60] }}{% if trace.article_title|length > 60 %}...{% endif %}</a></td>
+            <td><span class="score {% if trace.score >= 0.7 %}score-high{% elif trace.score >= 0.5 %}score-med{% else %}score-low{% endif %}">{{ "%.2f"|format(trace.score or 0) }}</span></td>
+            <td class="reasoning" title="{{ trace.reasoning }}">{{ trace.reasoning }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="3" style="text-align: center; color: #666;">No passed articles</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    function showTab(tabEl, contentId) {
+      // Find parent section
+      const section = tabEl.closest('.filter-section');
+      
+      // Deactivate all tabs in this section
+      section.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      section.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      
+      // Activate clicked tab
+      tabEl.classList.add('active');
+      document.getElementById(contentId).classList.add('active');
+    }
+  </script>
+</body>
+</html>
+
