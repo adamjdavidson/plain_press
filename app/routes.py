@@ -1167,11 +1167,15 @@ def unreject_article():
     This allows John to rescue articles that were incorrectly rejected by
     the filtering pipeline.
     """
+    import html
     article_url = request.form.get('article_url')
     
     if not article_url:
         flash('No article URL provided', 'error')
         return redirect(request.referrer or url_for('main.admin_filter_runs'))
+    
+    # Decode HTML entities (e.g., &amp; -> &) in case URL was HTML-encoded
+    article_url = html.unescape(article_url)
     
     session = SessionLocal()
     try:
@@ -1180,6 +1184,8 @@ def unreject_article():
         ).first()
         
         if not article:
+            # Log for debugging
+            logger.warning(f"Unreject: Article not found for URL: {article_url[:100]}...")
             flash('Article not found', 'error')
             return redirect(request.referrer or url_for('main.admin_filter_runs'))
         
