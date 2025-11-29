@@ -290,7 +290,7 @@ def _handle_feedback(article_id: str, rating: FeedbackRating, new_status: Articl
 
 # Sort column mapping for admin articles
 SORT_COLUMNS = {
-    'date': Article.discovered_at,
+    'date': Article.discovered_date,
     'score': Article.filter_score,
     'status': Article.status,
     'source': Article.source_name,
