@@ -552,7 +552,12 @@ class PipelineRun(Base):
     
     # Status
     status: Mapped[PipelineRunStatus] = Column(
-        SAEnum(PipelineRunStatus, native_enum=True, name="pipeline_run_status"),
+        SAEnum(
+            PipelineRunStatus, 
+            values_callable=lambda e: [x.value for x in e],
+            native_enum=True, 
+            name="pipeline_run_status"
+        ),
         nullable=False,
         default=PipelineRunStatus.RUNNING
     )

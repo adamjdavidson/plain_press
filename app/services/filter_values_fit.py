@@ -191,13 +191,9 @@ def filter_values_fit(article: dict, rules: Optional[dict] = None) -> ValuesFitR
             messages=[
                 {"role": "user", "content": prompt}
             ],
-            response_format={
+            output_format={
                 "type": "json_schema",
-                "json_schema": {
-                    "name": "values_fit_result",
-                    "schema": VALUES_FIT_SCHEMA,
-                    "strict": True
-                }
+                "schema": VALUES_FIT_SCHEMA
             }
         )
         
