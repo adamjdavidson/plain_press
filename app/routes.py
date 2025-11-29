@@ -288,13 +288,33 @@ def _handle_feedback(article_id: str, rating: FeedbackRating, new_status: Articl
 # Admin Routes
 # =============================================================================
 
+# Sort column mapping for admin articles
+SORT_COLUMNS = {
+    'date': Article.discovered_at,
+    'score': Article.filter_score,
+    'status': Article.status,
+    'source': Article.source_name,
+    'headline': Article.headline,
+}
+
+DEFAULT_SORT_DIRECTIONS = {
+    'date': 'desc',      # Newest first
+    'score': 'desc',     # Highest first
+    'status': 'asc',     # Alphabetical
+    'source': 'asc',     # Alphabetical
+    'headline': 'asc',   # Alphabetical
+}
+
+
 @main.route('/admin/articles')
 def admin_articles():
     """
     Admin page to view and manage all articles.
 
-    Supports filtering by status, score, source, and search.
+    Supports filtering by status, score, source, search, and sorting.
     """
+    from sqlalchemy import nullslast
+    
     session = SessionLocal()
 
     try:
@@ -304,6 +324,18 @@ def admin_articles():
         source_filter = request.args.get('source', '')
         search = request.args.get('search', '')
         page = int(request.args.get('page', 1))
+        
+        # Get sort parameters
+        sort_column = request.args.get('sort', 'date')
+        sort_dir = request.args.get('dir', '')
+        
+        # Validate sort column
+        if sort_column not in SORT_COLUMNS:
+            sort_column = 'date'
+        
+        # Use default direction if not specified or invalid
+        if sort_dir not in ('asc', 'desc'):
+            sort_dir = DEFAULT_SORT_DIRECTIONS.get(sort_column, 'desc')
 
         # Build query
         query = session.query(Article)
@@ -331,8 +363,15 @@ def admin_articles():
         total_count = query.count()
         total_pages = (total_count + ARTICLES_PER_PAGE - 1) // ARTICLES_PER_PAGE
 
-        # Get articles for current page
-        articles = query.order_by(Article.filter_score.desc()).offset(
+        # Build sort order with nulls last
+        sort_attr = SORT_COLUMNS[sort_column]
+        if sort_dir == 'desc':
+            order = nullslast(sort_attr.desc())
+        else:
+            order = nullslast(sort_attr.asc())
+
+        # Get articles for current page with sorting
+        articles = query.order_by(order).offset(
             (page - 1) * ARTICLES_PER_PAGE
         ).limit(ARTICLES_PER_PAGE).all()
 
@@ -360,6 +399,8 @@ def admin_articles():
                                  'source': source_filter,
                                  'search': search,
                              },
+                             sort=sort_column,
+                             dir=sort_dir,
                              page=page,
                              total_pages=total_pages)
     finally:
