@@ -22,7 +22,7 @@ from werkzeug.exceptions import HTTPException
 from app.database import SessionLocal
 from app.models import (
     Article, ArticleStatus, Feedback, FeedbackRating, Source, SourceType, DeepDive,
-    PipelineRun, FilterTrace, PipelineRunStatus
+    PipelineRun, FilterTrace, PipelineRunStatus, FilterStatus
 )
 
 logger = logging.getLogger(__name__)
@@ -1114,5 +1114,49 @@ def admin_rejection_export(run_id: str, filter_name: str):
         )
     except ValueError:
         abort(400, "Invalid run ID")
+    finally:
+        session.close()
+
+
+@main.route('/admin/unreject-article', methods=['POST'])
+def unreject_article():
+    """
+    Unreject an article, changing its status from rejected to pending.
+    
+    This allows John to rescue articles that were incorrectly rejected by
+    the filtering pipeline.
+    """
+    article_url = request.form.get('article_url')
+    
+    if not article_url:
+        flash('No article URL provided', 'error')
+        return redirect(request.referrer or url_for('main.admin_filter_runs'))
+    
+    session = SessionLocal()
+    try:
+        article = session.query(Article).filter(
+            Article.external_url == article_url
+        ).first()
+        
+        if not article:
+            flash('Article not found', 'error')
+            return redirect(request.referrer or url_for('main.admin_filter_runs'))
+        
+        if article.status == ArticleStatus.PENDING and article.filter_status == FilterStatus.PASSED:
+            flash('Article is already pending', 'info')
+            return redirect(request.referrer or url_for('main.admin_filter_runs'))
+        
+        # Update status to make it a candidate
+        article.status = ArticleStatus.PENDING
+        article.filter_status = FilterStatus.PASSED
+        session.commit()
+        
+        flash(f'Article unrejected: {article.headline[:50]}...', 'success')
+        return redirect(request.referrer or url_for('main.admin_filter_runs'))
+        
+    except Exception as e:
+        logger.error(f"Error unrejecting article: {e}")
+        flash(f'Error unrejecting article: {str(e)}', 'error')
+        return redirect(request.referrer or url_for('main.admin_filter_runs'))
     finally:
         session.close()

@@ -157,9 +157,46 @@
       background: white;
       border-radius: 8px;
     }
+
+    /* Flash messages */
+    .flash-messages { margin-bottom: 20px; }
+    .flash {
+      padding: 12px 16px;
+      border-radius: 6px;
+      margin-bottom: 10px;
+      font-size: 14px;
+    }
+    .flash.success { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+    .flash.error { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
+    .flash.info { background: #e3f2fd; color: #1565c0; border: 1px solid #90caf9; }
+
+    /* Unreject button */
+    .btn-unreject {
+      background: #4caf50;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      margin-left: 15px;
+    }
+    .btn-unreject:hover { background: #388e3c; }
   </style>
 </head>
 <body>
+  <!-- Flash Messages -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="flash-messages">
+        {% for category, message in messages %}
+          <div class="flash {{ category }}">{{ message }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
   <h1>Article Journey</h1>
   <div class="nav-links">
     <a href="/admin/filter-runs/{{ run.id }}">← Back to Run Details</a>
@@ -176,6 +213,10 @@
     <div class="outcome outcome-passed">✓ Passed All Filters</div>
     {% else %}
     <div class="outcome outcome-rejected">✗ Rejected at {{ rejected_at | replace('_', ' ') | title }}</div>
+    <form method="POST" action="{{ url_for('main.unreject_article') }}" style="display:inline;">
+      <input type="hidden" name="article_url" value="{{ article_url }}">
+      <button type="submit" class="btn-unreject">Unreject This Article</button>
+    </form>
     {% endif %}
   </div>
 

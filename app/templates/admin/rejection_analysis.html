@@ -164,9 +164,61 @@
       color: #666;
       text-transform: uppercase;
     }
+
+    /* Flash messages */
+    .flash-messages {
+      margin-bottom: 20px;
+    }
+    .flash {
+      padding: 12px 16px;
+      border-radius: 6px;
+      margin-bottom: 10px;
+      font-size: 14px;
+    }
+    .flash.success {
+      background: #e8f5e9;
+      color: #2e7d32;
+      border: 1px solid #a5d6a7;
+    }
+    .flash.error {
+      background: #ffebee;
+      color: #c62828;
+      border: 1px solid #ef9a9a;
+    }
+    .flash.info {
+      background: #e3f2fd;
+      color: #1565c0;
+      border: 1px solid #90caf9;
+    }
+
+    /* Unreject button */
+    .btn-unreject {
+      background: #4caf50;
+      color: white;
+      border: none;
+      padding: 4px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      margin-left: 10px;
+    }
+    .btn-unreject:hover {
+      background: #388e3c;
+    }
   </style>
 </head>
 <body>
+  <!-- Flash Messages -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="flash-messages">
+        {% for category, message in messages %}
+          <div class="flash {{ category }}">{{ message }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
   <h1>Rejection Analysis: {{ filter_name | replace('_', ' ') | title }}</h1>
   <div class="nav-links">
     <a href="/admin/filter-runs/{{ run.id }}">← Back to Run Details</a>
@@ -208,9 +260,15 @@
                 {{ example.title[:70] }}{% if example.title|length > 70 %}...{% endif %}
               </a>
             </span>
-            {% if example.score is not none %}
-            <span class="example-score">Score: {{ "%.2f"|format(example.score) }}</span>
-            {% endif %}
+            <span>
+              {% if example.score is not none %}
+              <span class="example-score">Score: {{ "%.2f"|format(example.score) }}</span>
+              {% endif %}
+              <form method="POST" action="{{ url_for('main.unreject_article') }}" style="display:inline;">
+                <input type="hidden" name="article_url" value="{{ example.url }}">
+                <button type="submit" class="btn-unreject">Unreject</button>
+              </form>
+            </span>
           </li>
           {% endfor %}
         </ul>

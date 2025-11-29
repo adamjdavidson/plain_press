@@ -190,9 +190,44 @@
     }
     .tab-content { display: none; }
     .tab-content.active { display: block; }
+
+    /* Flash messages */
+    .flash-messages { margin-bottom: 20px; }
+    .flash {
+      padding: 12px 16px;
+      border-radius: 6px;
+      margin-bottom: 10px;
+      font-size: 14px;
+    }
+    .flash.success { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+    .flash.error { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
+    .flash.info { background: #e3f2fd; color: #1565c0; border: 1px solid #90caf9; }
+
+    /* Unreject button */
+    .btn-unreject {
+      background: #4caf50;
+      color: white;
+      border: none;
+      padding: 3px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 11px;
+    }
+    .btn-unreject:hover { background: #388e3c; }
   </style>
 </head>
 <body>
+  <!-- Flash Messages -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="flash-messages">
+        {% for category, message in messages %}
+          <div class="flash {{ category }}">{{ message }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
   <h1>Pipeline Run Details</h1>
   <div class="nav-links">
     <a href="/admin/filter-runs">← All Runs</a>
@@ -275,17 +310,24 @@
             <th>Article</th>
             <th>Category</th>
             <th>Reasoning</th>
+            <th>Action</th>
           </tr>
         </thead>
         <tbody>
           {% for trace in traces.news_check if trace.decision == 'reject' %}
-          <tr onclick="window.location='/admin/filter-runs/{{ run.id }}/article/{{ trace.article_url | urlencode }}'">
-            <td><a class="article-link" href="{{ trace.article_url }}" target="_blank" title="{{ trace.article_title }}">{{ trace.article_title[:60] }}{% if trace.article_title|length > 60 %}...{% endif %}</a></td>
+          <tr>
+            <td><a class="article-link" href="/admin/filter-runs/{{ run.id }}/article/{{ trace.article_url | urlencode }}" title="{{ trace.article_title }}">{{ trace.article_title[:60] }}{% if trace.article_title|length > 60 %}...{% endif %}</a></td>
             <td><span class="decision decision-reject">{{ trace.reasoning.split(':')[0] if ':' in trace.reasoning else 'non-news' }}</span></td>
             <td class="reasoning" title="{{ trace.reasoning }}">{{ trace.reasoning }}</td>
+            <td>
+              <form method="POST" action="{{ url_for('main.unreject_article') }}" style="display:inline;" onclick="event.stopPropagation();">
+                <input type="hidden" name="article_url" value="{{ trace.article_url }}">
+                <button type="submit" class="btn-unreject">Unreject</button>
+              </form>
+            </td>
           </tr>
           {% else %}
-          <tr><td colspan="3" style="text-align: center; color: #666;">No rejected articles</td></tr>
+          <tr><td colspan="4" style="text-align: center; color: #666;">No rejected articles</td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -335,17 +377,24 @@
             <th>Article</th>
             <th>Score</th>
             <th>Reasoning</th>
+            <th>Action</th>
           </tr>
         </thead>
         <tbody>
           {% for trace in traces.wow_factor if trace.decision == 'reject' %}
-          <tr onclick="window.location='/admin/filter-runs/{{ run.id }}/article/{{ trace.article_url | urlencode }}'">
-            <td><a class="article-link" href="{{ trace.article_url }}" target="_blank" title="{{ trace.article_title }}">{{ trace.article_title[:60] }}{% if trace.article_title|length > 60 %}...{% endif %}</a></td>
+          <tr>
+            <td><a class="article-link" href="/admin/filter-runs/{{ run.id }}/article/{{ trace.article_url | urlencode }}" title="{{ trace.article_title }}">{{ trace.article_title[:60] }}{% if trace.article_title|length > 60 %}...{% endif %}</a></td>
             <td><span class="score score-low">{{ "%.2f"|format(trace.score or 0) }}</span></td>
             <td class="reasoning" title="{{ trace.reasoning }}">{{ trace.reasoning }}</td>
+            <td>
+              <form method="POST" action="{{ url_for('main.unreject_article') }}" style="display:inline;" onclick="event.stopPropagation();">
+                <input type="hidden" name="article_url" value="{{ trace.article_url }}">
+                <button type="submit" class="btn-unreject">Unreject</button>
+              </form>
+            </td>
           </tr>
           {% else %}
-          <tr><td colspan="3" style="text-align: center; color: #666;">No rejected articles</td></tr>
+          <tr><td colspan="4" style="text-align: center; color: #666;">No rejected articles</td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -395,17 +444,24 @@
             <th>Article</th>
             <th>Score</th>
             <th>Reasoning</th>
+            <th>Action</th>
           </tr>
         </thead>
         <tbody>
           {% for trace in traces.values_fit if trace.decision == 'reject' %}
-          <tr onclick="window.location='/admin/filter-runs/{{ run.id }}/article/{{ trace.article_url | urlencode }}'">
-            <td><a class="article-link" href="{{ trace.article_url }}" target="_blank" title="{{ trace.article_title }}">{{ trace.article_title[:60] }}{% if trace.article_title|length > 60 %}...{% endif %}</a></td>
+          <tr>
+            <td><a class="article-link" href="/admin/filter-runs/{{ run.id }}/article/{{ trace.article_url | urlencode }}" title="{{ trace.article_title }}">{{ trace.article_title[:60] }}{% if trace.article_title|length > 60 %}...{% endif %}</a></td>
             <td><span class="score score-low">{{ "%.2f"|format(trace.score or 0) }}</span></td>
             <td class="reasoning" title="{{ trace.reasoning }}">{{ trace.reasoning }}</td>
+            <td>
+              <form method="POST" action="{{ url_for('main.unreject_article') }}" style="display:inline;" onclick="event.stopPropagation();">
+                <input type="hidden" name="article_url" value="{{ trace.article_url }}">
+                <button type="submit" class="btn-unreject">Unreject</button>
+              </form>
+            </td>
           </tr>
           {% else %}
-          <tr><td colspan="3" style="text-align: center; color: #666;">No rejected articles</td></tr>
+          <tr><td colspan="4" style="text-align: center; color: #666;">No rejected articles</td></tr>
           {% endfor %}
         </tbody>
       </table>

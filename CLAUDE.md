@@ -122,6 +122,7 @@ This repository currently contains only design documentation. Implementation has
 - PostgreSQL (existing Article model - minor schema extension) (001-story-quality-filter)
 - Python 3.11 + Flask, SQLAlchemy, Anthropic SDK, Jinja2 (006-multi-stage-filtering)
 - PostgreSQL (existing) (006-multi-stage-filtering)
+- Python 3.11 + Flask, SQLAlchemy, Jinja2 (007-unreject-article)
 
 ## Recent Changes
 - 001-database-schema: Added Python 3.11+ + SQLAlchemy 2.0+, Alembic 1.12+, psycopg2-binary 2.9+ (PostgreSQL adapter)
