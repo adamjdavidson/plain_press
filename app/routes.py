@@ -1170,12 +1170,15 @@ def unreject_article():
     import html
     article_url = request.form.get('article_url')
     
+    logger.info(f"Unreject request received. Raw URL: {article_url[:100] if article_url else 'None'}...")
+    
     if not article_url:
         flash('No article URL provided', 'error')
         return redirect(request.referrer or url_for('main.admin_filter_runs'))
     
     # Decode HTML entities (e.g., &amp; -> &) in case URL was HTML-encoded
     article_url = html.unescape(article_url)
+    logger.info(f"Unreject: After unescape: {article_url[:100]}...")
     
     session = SessionLocal()
     try:
@@ -1184,10 +1187,18 @@ def unreject_article():
         ).first()
         
         if not article:
-            # Log for debugging
+            # Try partial match for debugging
+            similar = session.query(Article).filter(
+                Article.external_url.ilike(f"%{article_url[:50]}%")
+            ).first()
+            if similar:
+                logger.warning(f"Unreject: Exact match failed but found similar: {similar.external_url[:100]}")
             logger.warning(f"Unreject: Article not found for URL: {article_url[:100]}...")
             flash('Article not found', 'error')
             return redirect(request.referrer or url_for('main.admin_filter_runs'))
+        
+        # Log before state
+        logger.info(f"Unreject: Found article '{article.headline[:50]}' - current status={article.status.value}, filter_status={article.filter_status.value}")
         
         if article.status == ArticleStatus.PENDING and article.filter_status == FilterStatus.PASSED:
             flash('Article is already pending', 'info')
@@ -1197,6 +1208,10 @@ def unreject_article():
         article.status = ArticleStatus.PENDING
         article.filter_status = FilterStatus.PASSED
         session.commit()
+        
+        # Verify the change
+        session.refresh(article)
+        logger.info(f"Unreject: After commit - status={article.status.value}, filter_status={article.filter_status.value}")
         
         flash(f'Article unrejected: {article.headline[:50]}...', 'success')
         return redirect(request.referrer or url_for('main.admin_filter_runs'))
