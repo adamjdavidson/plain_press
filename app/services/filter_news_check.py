@@ -18,7 +18,8 @@ from anthropic import Anthropic
 logger = logging.getLogger(__name__)
 
 # Configuration
-MODEL = os.environ.get("FILTER_NEWS_CHECK_MODEL", "claude-haiku-4-5")
+# Note: Using Sonnet because Haiku doesn't support structured outputs
+MODEL = os.environ.get("FILTER_NEWS_CHECK_MODEL", "claude-sonnet-4-5")
 MAX_TOKENS = 1024
 TEMPERATURE = 0
 CONTENT_LIMIT = 8000  # Truncate articles to 8,000 characters
@@ -147,13 +148,9 @@ def filter_news_check(article: dict) -> NewsCheckResult:
             messages=[
                 {"role": "user", "content": prompt}
             ],
-            response_format={
+            output_format={
                 "type": "json_schema",
-                "json_schema": {
-                    "name": "news_check_result",
-                    "schema": NEWS_CHECK_SCHEMA,
-                    "strict": True
-                }
+                "schema": NEWS_CHECK_SCHEMA
             }
         )
         

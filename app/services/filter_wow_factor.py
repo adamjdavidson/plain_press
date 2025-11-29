@@ -135,13 +135,9 @@ def filter_wow_factor(article: dict) -> WowFactorResult:
             messages=[
                 {"role": "user", "content": prompt}
             ],
-            response_format={
+            output_format={
                 "type": "json_schema",
-                "json_schema": {
-                    "name": "wow_factor_result",
-                    "schema": WOW_FACTOR_SCHEMA,
-                    "strict": True
-                }
+                "schema": WOW_FACTOR_SCHEMA
             }
         )
         
