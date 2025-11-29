@@ -32,12 +32,18 @@ def _log_progress(msg: str, start_time: float = None):
     print(full_msg, file=sys.stdout, flush=True)
 
 
+# Feature flag for multi-stage filtering
+import os
+USE_MULTI_STAGE_FILTER = os.environ.get("USE_MULTI_STAGE_FILTER", "false").lower() == "true"
+
+
 # Delay imports to track where hangs occur
 def _import_dependencies(start_time: float):
     """Import dependencies with progress logging."""
     global SessionLocal, Article, ArticleStatus, Source
     global fetch_all_rss_sources, search_all_queries
     global deduplicate_articles, normalize_url, filter_all_articles
+    global run_pipeline
 
     _log_progress("Importing database module...", start_time)
     from app.database import SessionLocal
@@ -62,6 +68,13 @@ def _import_dependencies(start_time: float):
     _log_progress("Importing claude_filter...", start_time)
     from app.services.claude_filter import filter_all_articles
     _log_progress("claude_filter imported", start_time)
+    
+    if USE_MULTI_STAGE_FILTER:
+        _log_progress("Importing filter_pipeline (multi-stage enabled)...", start_time)
+        from app.services.filter_pipeline import run_pipeline
+        _log_progress("filter_pipeline imported", start_time)
+    else:
+        run_pipeline = None
 
 
 def run_discovery_job() -> dict:
@@ -144,20 +157,68 @@ def run_discovery_job() -> dict:
             stats['end_time'] = datetime.now(timezone.utc).isoformat()
             return stats
 
-        # Step 4: Filter through Claude Sonnet 4.5
-        _log_progress(f"Step 4: Starting Claude Sonnet 4.5 filtering ({len(unique_articles)} articles)...", job_start)
-        try:
-            kept_articles, discarded_articles, filter_stats = filter_all_articles(unique_articles)
-            stats['total_filtered'] = filter_stats['total_evaluated']
-            stats['total_kept'] = filter_stats['total_kept']
-            stats['cost_estimate'] += filter_stats['cost_estimate']
-            _log_progress(f"Step 4: Claude complete - kept {stats['total_kept']}/{stats['total_filtered']} articles", job_start)
-        except Exception as e:
-            _log_progress(f"Step 4: Claude FAILED - {e}", job_start)
-            logger.error(f"Claude filtering failed: {e}")
-            stats['errors'].append(f"Claude filter: {e}")
-            kept_articles = []
-            discarded_articles = []
+        # Step 4: Filter articles
+        if USE_MULTI_STAGE_FILTER and run_pipeline is not None:
+            # NEW: Multi-stage filtering pipeline
+            _log_progress(f"Step 4: Starting multi-stage filter pipeline ({len(unique_articles)} articles)...", job_start)
+            try:
+                pipeline_result = run_pipeline(unique_articles)
+                
+                # Convert pipeline results to article format
+                kept_articles = []
+                discarded_articles = []
+                
+                for result in pipeline_result.passed_articles:
+                    kept_articles.append({
+                        **next((a for a in unique_articles if a.get('url') == result.url), {}),
+                        'filter_score': result.values_score or 0.5,
+                        'content_type': result.content_type,
+                        'wow_score': result.wow_score,
+                        'last_run_id': str(pipeline_result.run_id),
+                    })
+                
+                for result in pipeline_result.failed_articles:
+                    discarded_articles.append({
+                        **next((a for a in unique_articles if a.get('url') == result.url), {}),
+                        'filter_score': result.values_score or 0.0,
+                        'filter_notes': f"Rejected at {result.rejection_stage}: {result.rejection_reason}",
+                        'content_type': result.content_type,
+                        'wow_score': result.wow_score,
+                        'last_run_id': str(pipeline_result.run_id),
+                    })
+                
+                stats['total_filtered'] = pipeline_result.stats['input_count']
+                stats['total_kept'] = pipeline_result.stats['final_pass']
+                stats['pipeline_run_id'] = str(pipeline_result.run_id)
+                stats['pipeline_stats'] = pipeline_result.stats
+                _log_progress(
+                    f"Step 4: Pipeline complete - {pipeline_result.stats['input_count']} → "
+                    f"{pipeline_result.stats['filter1_pass']} (F1) → "
+                    f"{pipeline_result.stats['filter2_pass']} (F2) → "
+                    f"{pipeline_result.stats['filter3_pass']} (F3)",
+                    job_start
+                )
+            except Exception as e:
+                _log_progress(f"Step 4: Multi-stage pipeline FAILED - {e}", job_start)
+                logger.error(f"Multi-stage filtering failed: {e}")
+                stats['errors'].append(f"Multi-stage filter: {e}")
+                kept_articles = []
+                discarded_articles = []
+        else:
+            # LEGACY: Single-pass Claude filter
+            _log_progress(f"Step 4: Starting Claude Sonnet 4.5 filtering ({len(unique_articles)} articles)...", job_start)
+            try:
+                kept_articles, discarded_articles, filter_stats = filter_all_articles(unique_articles)
+                stats['total_filtered'] = filter_stats['total_evaluated']
+                stats['total_kept'] = filter_stats['total_kept']
+                stats['cost_estimate'] += filter_stats['cost_estimate']
+                _log_progress(f"Step 4: Claude complete - kept {stats['total_kept']}/{stats['total_filtered']} articles", job_start)
+            except Exception as e:
+                _log_progress(f"Step 4: Claude FAILED - {e}", job_start)
+                logger.error(f"Claude filtering failed: {e}")
+                stats['errors'].append(f"Claude filter: {e}")
+                kept_articles = []
+                discarded_articles = []
 
         # Step 5: Store ALL articles (both kept and discarded)
         all_filtered = kept_articles + discarded_articles
@@ -235,6 +296,14 @@ def store_all_articles(articles: list[dict]) -> int:
             # Get topics (will be empty list if not provided by Claude filter)
             topics = article.get('topics', [])
 
+            # Parse last_run_id if present
+            last_run_id = article.get('last_run_id')
+            if last_run_id and isinstance(last_run_id, str):
+                try:
+                    last_run_id = UUID(last_run_id)
+                except ValueError:
+                    last_run_id = None
+            
             # Build article record
             article_data = {
                 'external_url': normalized_url,
@@ -249,6 +318,11 @@ def store_all_articles(articles: list[dict]) -> int:
                 'status': status,
                 'source_id': article.get('source_id'),
                 'topics': topics,
+                # Quality filter fields
+                'content_type': article.get('content_type'),
+                'wow_score': article.get('wow_score'),
+                # Pipeline tracing
+                'last_run_id': last_run_id,
             }
 
             # Use upsert to handle duplicates

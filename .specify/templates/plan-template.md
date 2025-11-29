@@ -35,7 +35,6 @@ Verify alignment with `.specify/memory/constitution.md`:
 
 - [ ] **Single-User Simplicity**: Does this feature serve John's workflow, or add complexity for theoretical users?
 - [ ] **Volume Over Precision**: Does this maintain 40-60 candidates/day without aggressive filtering?
-- [ ] **Cost Discipline**: Will this keep monthly costs under $50? Document API cost impact.
 - [ ] **Reliability Over Performance**: Are external API calls idempotent? Is state persisted before actions?
 
 **Violations** (if any): Document justified exceptions in Complexity Tracking section below.

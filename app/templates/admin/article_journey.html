@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Article Journey - Plain Press</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    h1 { margin: 0 0 10px; color: #2d5016; font-size: 20px; }
+    .nav-links {
+      margin-bottom: 20px;
+    }
+    .nav-links a {
+      color: #2d5016;
+      margin-right: 15px;
+    }
+
+    .article-info {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .article-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 10px;
+      line-height: 1.4;
+    }
+    .article-title a {
+      color: #333;
+      text-decoration: none;
+    }
+    .article-title a:hover { color: #2d5016; }
+    .article-url {
+      font-size: 12px;
+      color: #666;
+      word-break: break-all;
+    }
+
+    .outcome {
+      display: inline-block;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 14px;
+      margin-top: 15px;
+    }
+    .outcome-passed {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+    .outcome-rejected {
+      background: #ffebee;
+      color: #c62828;
+    }
+
+    /* Timeline */
+    .journey-timeline {
+      position: relative;
+      padding-left: 30px;
+    }
+    .journey-timeline::before {
+      content: '';
+      position: absolute;
+      left: 10px;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: #ddd;
+    }
+
+    .filter-step {
+      position: relative;
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 15px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .filter-step::before {
+      content: '';
+      position: absolute;
+      left: -24px;
+      top: 24px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #ddd;
+    }
+    .filter-step.passed::before { background: #4caf50; }
+    .filter-step.rejected::before { background: #f44336; }
+    .filter-step.skipped::before { background: #9e9e9e; }
+    .filter-step.skipped {
+      opacity: 0.5;
+    }
+
+    .step-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .step-name {
+      font-weight: 600;
+      font-size: 16px;
+    }
+    .step-decision {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .decision-pass { background: #e8f5e9; color: #2e7d32; }
+    .decision-reject { background: #ffebee; color: #c62828; }
+    .decision-skipped { background: #eeeeee; color: #666; }
+
+    .step-score {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 10px;
+    }
+    .step-score strong {
+      font-size: 18px;
+      color: #333;
+    }
+
+    .step-reasoning {
+      background: #f8f9fa;
+      padding: 12px;
+      border-radius: 4px;
+      font-size: 14px;
+      line-height: 1.5;
+      color: #555;
+    }
+
+    .step-metrics {
+      margin-top: 10px;
+      font-size: 11px;
+      color: #999;
+    }
+    .step-metrics span { margin-right: 15px; }
+
+    .no-journey {
+      text-align: center;
+      padding: 40px;
+      color: #666;
+      background: white;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Article Journey</h1>
+  <div class="nav-links">
+    <a href="/admin/filter-runs/{{ run.id }}">← Back to Run Details</a>
+    <a href="/admin/filter-runs">All Runs</a>
+  </div>
+
+  <div class="article-info">
+    <div class="article-title">
+      <a href="{{ article_url }}" target="_blank">{{ article_title }}</a>
+    </div>
+    <div class="article-url">{{ article_url }}</div>
+    
+    {% if final_outcome == 'passed' %}
+    <div class="outcome outcome-passed">✓ Passed All Filters</div>
+    {% else %}
+    <div class="outcome outcome-rejected">✗ Rejected at {{ rejected_at | replace('_', ' ') | title }}</div>
+    {% endif %}
+  </div>
+
+  {% if journey %}
+  <div class="journey-timeline">
+    <!-- Filter 1: News Check -->
+    {% set f1 = journey.get('news_check') %}
+    {% if f1 %}
+    <div class="filter-step {{ f1.decision }}">
+      <div class="step-header">
+        <span class="step-name">Filter 1: News Check</span>
+        <span class="step-decision decision-{{ f1.decision }}">{{ f1.decision }}</span>
+      </div>
+      <div class="step-reasoning">{{ f1.reasoning }}</div>
+      <div class="step-metrics">
+        {% if f1.input_tokens %}<span>Input: {{ f1.input_tokens }} tokens</span>{% endif %}
+        {% if f1.output_tokens %}<span>Output: {{ f1.output_tokens }} tokens</span>{% endif %}
+        {% if f1.latency_ms %}<span>Latency: {{ f1.latency_ms }}ms</span>{% endif %}
+      </div>
+    </div>
+    {% else %}
+    <div class="filter-step skipped">
+      <div class="step-header">
+        <span class="step-name">Filter 1: News Check</span>
+        <span class="step-decision decision-skipped">not evaluated</span>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Filter 2: Wow Factor -->
+    {% set f2 = journey.get('wow_factor') %}
+    {% if f2 %}
+    <div class="filter-step {{ f2.decision }}">
+      <div class="step-header">
+        <span class="step-name">Filter 2: Wow Factor</span>
+        <span class="step-decision decision-{{ f2.decision }}">{{ f2.decision }}</span>
+      </div>
+      {% if f2.score is not none %}
+      <div class="step-score">Score: <strong>{{ "%.2f"|format(f2.score) }}</strong></div>
+      {% endif %}
+      <div class="step-reasoning">{{ f2.reasoning }}</div>
+      <div class="step-metrics">
+        {% if f2.input_tokens %}<span>Input: {{ f2.input_tokens }} tokens</span>{% endif %}
+        {% if f2.output_tokens %}<span>Output: {{ f2.output_tokens }} tokens</span>{% endif %}
+        {% if f2.latency_ms %}<span>Latency: {{ f2.latency_ms }}ms</span>{% endif %}
+      </div>
+    </div>
+    {% elif f1 and f1.decision == 'reject' %}
+    <div class="filter-step skipped">
+      <div class="step-header">
+        <span class="step-name">Filter 2: Wow Factor</span>
+        <span class="step-decision decision-skipped">skipped</span>
+      </div>
+      <div class="step-reasoning" style="color: #999;">Article was rejected at Filter 1</div>
+    </div>
+    {% else %}
+    <div class="filter-step skipped">
+      <div class="step-header">
+        <span class="step-name">Filter 2: Wow Factor</span>
+        <span class="step-decision decision-skipped">not evaluated</span>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Filter 3: Values Fit -->
+    {% set f3 = journey.get('values_fit') %}
+    {% if f3 %}
+    <div class="filter-step {{ f3.decision }}">
+      <div class="step-header">
+        <span class="step-name">Filter 3: Values Fit</span>
+        <span class="step-decision decision-{{ f3.decision }}">{{ f3.decision }}</span>
+      </div>
+      {% if f3.score is not none %}
+      <div class="step-score">Score: <strong>{{ "%.2f"|format(f3.score) }}</strong></div>
+      {% endif %}
+      <div class="step-reasoning">{{ f3.reasoning }}</div>
+      <div class="step-metrics">
+        {% if f3.input_tokens %}<span>Input: {{ f3.input_tokens }} tokens</span>{% endif %}
+        {% if f3.output_tokens %}<span>Output: {{ f3.output_tokens }} tokens</span>{% endif %}
+        {% if f3.latency_ms %}<span>Latency: {{ f3.latency_ms }}ms</span>{% endif %}
+      </div>
+    </div>
+    {% elif (f1 and f1.decision == 'reject') or (f2 and f2.decision == 'reject') %}
+    <div class="filter-step skipped">
+      <div class="step-header">
+        <span class="step-name">Filter 3: Values Fit</span>
+        <span class="step-decision decision-skipped">skipped</span>
+      </div>
+      <div class="step-reasoning" style="color: #999;">Article was rejected at earlier filter</div>
+    </div>
+    {% else %}
+    <div class="filter-step skipped">
+      <div class="step-header">
+        <span class="step-name">Filter 3: Values Fit</span>
+        <span class="step-decision decision-skipped">not evaluated</span>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+  {% else %}
+  <div class="no-journey">
+    <p>No filter journey found for this article.</p>
+  </div>
+  {% endif %}
+</body>
+</html>
+

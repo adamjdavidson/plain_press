@@ -69,6 +69,13 @@ class EmailStatus(enum.Enum):
     FAILED = "failed"
 
 
+class PipelineRunStatus(enum.Enum):
+    """Filter pipeline execution status"""
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
 # ============================================================================
 # Entity Models
 # ============================================================================
@@ -106,6 +113,10 @@ class Article(Base):
     filter_notes: Mapped[Optional[str]] = Column(Text, nullable=True)
     raw_content: Mapped[Optional[str]] = Column(Text, nullable=True)
     
+    # Quality Filter Fields
+    content_type: Mapped[Optional[str]] = Column(String(50), nullable=True)
+    wow_score: Mapped[Optional[float]] = Column(Float, nullable=True)
+    
     # Workflow State
     emailed_date: Mapped[Optional[datetime]] = Column(DateTime(timezone=True), nullable=True)
     status: Mapped[ArticleStatus] = Column(
@@ -132,6 +143,11 @@ class Article(Base):
     email_batch_id: Mapped[Optional[UUID]] = Column(
         PGUUID(as_uuid=True),
         ForeignKey("email_batches.id", ondelete="SET NULL"),
+        nullable=True
+    )
+    last_run_id: Mapped[Optional[UUID]] = Column(
+        PGUUID(as_uuid=True),
+        ForeignKey("pipeline_runs.id", ondelete="SET NULL"),
         nullable=True
     )
     
@@ -504,6 +520,129 @@ class EmailSettings(Base):
         nullable=False,
         server_default=func.now(),
         onupdate=func.now()
+    )
+
+
+# ============================================================================
+# Pipeline Tracing Models
+# ============================================================================
+
+class PipelineRun(Base):
+    """
+    A single execution of the multi-stage filtering pipeline.
+    
+    Groups all filter traces for one pipeline run and tracks aggregate statistics.
+    """
+    __tablename__ = "pipeline_runs"
+    
+    # Primary Key
+    id: Mapped[UUID] = Column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        server_default=func.gen_random_uuid()
+    )
+    
+    # Timing
+    started_at: Mapped[datetime] = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now()
+    )
+    completed_at: Mapped[Optional[datetime]] = Column(DateTime(timezone=True), nullable=True)
+    
+    # Status
+    status: Mapped[PipelineRunStatus] = Column(
+        SAEnum(PipelineRunStatus, native_enum=True, name="pipeline_run_status"),
+        nullable=False,
+        default=PipelineRunStatus.RUNNING
+    )
+    
+    # Counts
+    input_count: Mapped[int] = Column(Integer, nullable=False, default=0)
+    filter1_pass_count: Mapped[Optional[int]] = Column(Integer, nullable=True)
+    filter2_pass_count: Mapped[Optional[int]] = Column(Integer, nullable=True)
+    filter3_pass_count: Mapped[Optional[int]] = Column(Integer, nullable=True)
+    
+    # Error info
+    error_message: Mapped[Optional[str]] = Column(Text, nullable=True)
+    
+    # Timestamps
+    created_at: Mapped[datetime] = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now()
+    )
+    
+    # Relationships
+    traces: Mapped[list["FilterTrace"]] = relationship(
+        "FilterTrace",
+        back_populates="pipeline_run",
+        cascade="all, delete-orphan"
+    )
+    
+    # Indexes
+    __table_args__ = (
+        Index("ix_pipeline_runs_started_at", "started_at"),
+        Index("ix_pipeline_runs_status", "status"),
+    )
+
+
+class FilterTrace(Base):
+    """
+    Record of one filter evaluating one article.
+    
+    Core tracing entity for understanding filter decisions.
+    """
+    __tablename__ = "filter_traces"
+    
+    # Primary Key
+    id: Mapped[UUID] = Column(
+        PGUUID(as_uuid=True),
+        primary_key=True,
+        server_default=func.gen_random_uuid()
+    )
+    
+    # Foreign Keys
+    run_id: Mapped[UUID] = Column(
+        PGUUID(as_uuid=True),
+        ForeignKey("pipeline_runs.id", ondelete="CASCADE"),
+        nullable=False
+    )
+    
+    # Article identification (not FK - articles may not exist yet)
+    article_url: Mapped[str] = Column(String(500), nullable=False)
+    article_title: Mapped[str] = Column(String(500), nullable=False)
+    
+    # Filter identification
+    filter_name: Mapped[str] = Column(String(50), nullable=False)  # news_check, wow_factor, values_fit
+    filter_order: Mapped[int] = Column(Integer, nullable=False)  # 1, 2, or 3
+    
+    # Decision
+    decision: Mapped[str] = Column(String(20), nullable=False)  # pass, reject
+    score: Mapped[Optional[float]] = Column(Float, nullable=True)
+    reasoning: Mapped[str] = Column(Text, nullable=False)
+    
+    # Metrics
+    input_tokens: Mapped[Optional[int]] = Column(Integer, nullable=True)
+    output_tokens: Mapped[Optional[int]] = Column(Integer, nullable=True)
+    latency_ms: Mapped[Optional[int]] = Column(Integer, nullable=True)
+    
+    # Timestamps
+    created_at: Mapped[datetime] = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now()
+    )
+    
+    # Relationships
+    pipeline_run: Mapped["PipelineRun"] = relationship("PipelineRun", back_populates="traces")
+    
+    # Indexes
+    __table_args__ = (
+        Index("ix_filter_traces_run_id", "run_id"),
+        Index("ix_filter_traces_filter_name", "filter_name"),
+        Index("ix_filter_traces_decision", "decision"),
+        Index("ix_filter_traces_created_at", "created_at"),
     )
 
 

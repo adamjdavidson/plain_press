@@ -1,18 +1,30 @@
 <!--
   Constitution Sync Impact Report
   ===============================
-  Version: 1.0.0 (Initial ratification)
-  Changed Principles: N/A (initial version)
-  Added Sections: All sections (initial constitution)
-  Removed Sections: None
+  Version: 1.0.0 → 2.0.0 (MAJOR)
+  
+  Changed Principles:
+  - REMOVED: "V. Cost Discipline" - Eliminated to avoid efficiency choices that destroy capabilities
+  - RENAMED: "VI. Reliability Over Performance" → "V. Reliability Over Performance"
+  
+  Added Sections: None
+  
+  Removed Sections:
+  - Cost Discipline principle (entire section)
+  - Cost Discipline references in Compliance section
+  - Cost Discipline references in Feature Development Process
   
   Templates Requiring Updates:
-  ✅ plan-template.md - Constitution Check placeholder already present
-  ✅ spec-template.md - User story format aligns with single-user principle
-  ✅ tasks-template.md - Test-optional approach aligns with pragmatism principle
-  ✅ agent-file-template.md - Compatible with constitution principles
+  ✅ spec-template.md - Removed Cost Discipline from Constitution Check note
+  ✅ plan-template.md - Removed Cost Discipline from Constitution Check checklist
+  ✅ tasks-template.md - No cost discipline references
+  ✅ agent-file-template.md - No cost discipline references
   
   Follow-up TODOs: None
+  
+  Amendment Rationale: Cost discipline was causing efficiency-focused decisions
+  that limited system capabilities. At this stage, effectiveness and quality
+  are prioritized over cost optimization.
 -->
 
 # Amish News Finder Constitution
@@ -67,26 +79,7 @@ Tests exist to **prevent regressions and validate contracts**, not to achieve co
 
 **Rationale**: This is a single-user productivity tool with clear workflows. Over-testing slows development without meaningful safety gains. Test the boundaries where things break (external APIs, data transforms, scheduled jobs), not trivial getters.
 
-### V. Cost Discipline
-
-Monthly operational costs MUST stay **under $50**. This constraint drives architectural decisions toward simplicity and away from expensive abstractions.
-
-**Budget Breakdown** (estimated):
-- Railway hosting: $10-15/month
-- Claude API (Haiku filtering + Sonnet deep dives): $15-25/month
-- Exa API: $5-10/month
-- SendGrid: Free tier (sufficient for <1 email/day)
-- Google APIs: Free tier
-
-**Rules**:
-- Use Haiku for filtering (cheap, fast), reserve Sonnet for deep dives only
-- No unnecessary database queries; cache aggressively where appropriate
-- Monitor API costs weekly; alert if approaching $50
-- No premium services or add-ons without explicit cost justification
-
-**Rationale**: John's budget is fixed. If a feature costs money, it must deliver proportional value. Cost discipline prevents feature creep.
-
-### VI. Reliability Over Performance
+### V. Reliability Over Performance
 
 A **delayed email is acceptable**; a **lost email is not**. The system prioritizes durability and correctness over speed.
 
@@ -139,7 +132,7 @@ tests/
 
 1. **Spec Phase**: Document user need in `/specs/###-feature/spec.md` using `/speckit.spec`
 2. **Plan Phase**: Technical design in `plan.md` using `/speckit.plan`
-3. **Constitution Check**: Verify feature aligns with principles (especially Single-User Simplicity, Cost Discipline)
+3. **Constitution Check**: Verify feature aligns with principles (especially Single-User Simplicity)
 4. **Implementation**: Follow tasks from `/speckit.tasks` if needed, or proceed directly for small changes
 5. **Manual Testing**: Validate with John's real workflow (send test email, click buttons, check Google Docs)
 6. **Deploy**: Railway auto-deploys from main branch
@@ -192,8 +185,7 @@ The system filters for stories that are **wholesome, surprising, and relatable**
 
 - All `/speckit.plan` outputs include **Constitution Check** section
 - Plan phase MUST document any principle violations with explicit justification
-- Code reviews verify alignment with Single-User Simplicity and Cost Discipline
-- Weekly cost review ensures budget remains under $50/month
+- Code reviews verify alignment with Single-User Simplicity
 
 ### Development Guidance
 
@@ -202,4 +194,4 @@ For runtime development context, see:
 - `an_story_criteria.md` - Editorial guidelines for filtering logic
 - `/specs/###-feature/` - Feature-specific design docs
 
-**Version**: 1.0.0 | **Ratified**: 2025-11-26 | **Last Amended**: 2025-11-26
+**Version**: 2.0.0 | **Ratified**: 2025-11-26 | **Last Amended**: 2025-11-29

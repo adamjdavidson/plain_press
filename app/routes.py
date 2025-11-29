@@ -20,7 +20,10 @@ from sqlalchemy import func
 from werkzeug.exceptions import HTTPException
 
 from app.database import SessionLocal
-from app.models import Article, ArticleStatus, Feedback, FeedbackRating, Source, SourceType, DeepDive
+from app.models import (
+    Article, ArticleStatus, Feedback, FeedbackRating, Source, SourceType, DeepDive,
+    PipelineRun, FilterTrace, PipelineRunStatus
+)
 
 logger = logging.getLogger(__name__)
 
@@ -835,5 +838,281 @@ def admin_delete_source(source_id: str):
     except Exception as e:
         session.rollback()
         return jsonify({'error': str(e)}), 500
+    finally:
+        session.close()
+
+
+# ============================================================================
+# Filter Pipeline Admin Routes
+# ============================================================================
+
+@main.route('/admin/filter-runs')
+def admin_filter_runs():
+    """
+    List all pipeline runs with summary statistics.
+    
+    Shows funnel data: input → filter1 → filter2 → filter3 → output
+    """
+    session = SessionLocal()
+    try:
+        # Get recent pipeline runs (last 7 days worth)
+        from datetime import timedelta
+        cutoff = datetime.now(timezone.utc) - timedelta(days=7)
+        
+        runs = session.query(PipelineRun).filter(
+            PipelineRun.started_at >= cutoff
+        ).order_by(PipelineRun.started_at.desc()).all()
+        
+        # Calculate aggregate stats
+        total_processed = sum(r.input_count for r in runs)
+        total_passed = sum(r.filter3_pass_count or 0 for r in runs)
+        avg_pass_rate = total_passed / total_processed if total_processed > 0 else 0
+        
+        stats = {
+            'total_runs': len(runs),
+            'total_processed': total_processed,
+            'total_passed': total_passed,
+            'avg_pass_rate': avg_pass_rate
+        }
+        
+        return render_template('admin/filter_runs.html', runs=runs, stats=stats)
+    finally:
+        session.close()
+
+
+@main.route('/admin/filter-runs/<run_id>')
+def admin_filter_run_detail(run_id: str):
+    """
+    Show detailed funnel view for a single pipeline run.
+    
+    Displays each filter stage with passed/rejected articles and reasoning.
+    """
+    session = SessionLocal()
+    try:
+        run_uuid = UUID(run_id)
+        run = session.query(PipelineRun).filter(PipelineRun.id == run_uuid).first()
+        if not run:
+            abort(404)
+        
+        # Get all traces for this run
+        traces_list = session.query(FilterTrace).filter(
+            FilterTrace.run_id == run_uuid
+        ).order_by(FilterTrace.filter_order, FilterTrace.created_at).all()
+        
+        # Group traces by filter
+        traces = {
+            'news_check': [t for t in traces_list if t.filter_name == 'news_check'],
+            'wow_factor': [t for t in traces_list if t.filter_name == 'wow_factor'],
+            'values_fit': [t for t in traces_list if t.filter_name == 'values_fit']
+        }
+        
+        # Calculate funnel stats
+        funnel = {
+            'news_check': {
+                'passed': len([t for t in traces['news_check'] if t.decision == 'pass']),
+                'rejected': len([t for t in traces['news_check'] if t.decision == 'reject'])
+            },
+            'wow_factor': {
+                'passed': len([t for t in traces['wow_factor'] if t.decision == 'pass']),
+                'rejected': len([t for t in traces['wow_factor'] if t.decision == 'reject'])
+            },
+            'values_fit': {
+                'passed': len([t for t in traces['values_fit'] if t.decision == 'pass']),
+                'rejected': len([t for t in traces['values_fit'] if t.decision == 'reject'])
+            }
+        }
+        
+        return render_template(
+            'admin/filter_run_detail.html',
+            run=run,
+            traces=traces,
+            funnel=funnel
+        )
+    except ValueError:
+        abort(400, "Invalid run ID")
+    finally:
+        session.close()
+
+
+@main.route('/admin/filter-runs/<run_id>/article/<path:article_url>')
+def admin_article_journey(run_id: str, article_url: str):
+    """
+    Show the complete filter journey for a single article.
+    
+    Displays each filter's decision, score, and reasoning.
+    """
+    from urllib.parse import unquote
+    
+    session = SessionLocal()
+    try:
+        run_uuid = UUID(run_id)
+        run = session.query(PipelineRun).filter(PipelineRun.id == run_uuid).first()
+        if not run:
+            abort(404)
+        
+        # URL decode the article URL
+        decoded_url = unquote(article_url)
+        
+        # Get all traces for this article in this run
+        traces = session.query(FilterTrace).filter(
+            FilterTrace.run_id == run_uuid,
+            FilterTrace.article_url == decoded_url
+        ).order_by(FilterTrace.filter_order).all()
+        
+        if not traces:
+            abort(404, "Article not found in this run")
+        
+        # Build journey dict
+        journey = {}
+        article_title = traces[0].article_title if traces else "Unknown"
+        
+        for trace in traces:
+            journey[trace.filter_name] = {
+                'decision': trace.decision,
+                'score': trace.score,
+                'reasoning': trace.reasoning,
+                'input_tokens': trace.input_tokens,
+                'output_tokens': trace.output_tokens,
+                'latency_ms': trace.latency_ms
+            }
+        
+        # Determine final outcome
+        final_outcome = 'passed'
+        rejected_at = None
+        for filter_name in ['news_check', 'wow_factor', 'values_fit']:
+            if filter_name in journey and journey[filter_name]['decision'] == 'reject':
+                final_outcome = 'rejected'
+                rejected_at = filter_name
+                break
+        
+        return render_template(
+            'admin/article_journey.html',
+            run=run,
+            article_url=decoded_url,
+            article_title=article_title,
+            journey=journey,
+            final_outcome=final_outcome,
+            rejected_at=rejected_at
+        )
+    except ValueError:
+        abort(400, "Invalid run ID")
+    finally:
+        session.close()
+
+
+@main.route('/admin/filter-runs/<run_id>/rejections/<filter_name>')
+def admin_rejection_analysis(run_id: str, filter_name: str):
+    """
+    Show aggregated rejection patterns for a specific filter.
+    
+    Groups rejections by reasoning to identify systematic issues.
+    """
+    session = SessionLocal()
+    try:
+        run_uuid = UUID(run_id)
+        run = session.query(PipelineRun).filter(PipelineRun.id == run_uuid).first()
+        if not run:
+            abort(404)
+        
+        # Validate filter name
+        if filter_name not in ['news_check', 'wow_factor', 'values_fit']:
+            abort(400, "Invalid filter name")
+        
+        # Get all rejections for this filter
+        rejections = session.query(FilterTrace).filter(
+            FilterTrace.run_id == run_uuid,
+            FilterTrace.filter_name == filter_name,
+            FilterTrace.decision == 'reject'
+        ).all()
+        
+        total_rejected = len(rejections)
+        
+        # Group by reasoning pattern (truncated to first 100 chars for grouping)
+        from collections import defaultdict
+        pattern_groups = defaultdict(list)
+        
+        for r in rejections:
+            # Use first line or first 100 chars as pattern key
+            reason_key = r.reasoning.split('\n')[0][:100] if r.reasoning else "No reason provided"
+            pattern_groups[reason_key].append({
+                'url': r.article_url,
+                'title': r.article_title,
+                'score': r.score,
+                'full_reasoning': r.reasoning
+            })
+        
+        # Build patterns list sorted by count
+        patterns = []
+        for reason, examples in sorted(pattern_groups.items(), key=lambda x: -len(x[1])):
+            patterns.append({
+                'reason_summary': reason,
+                'count': len(examples),
+                'examples': examples
+            })
+        
+        return render_template(
+            'admin/rejection_analysis.html',
+            run=run,
+            filter_name=filter_name,
+            patterns=patterns,
+            total_rejected=total_rejected
+        )
+    except ValueError:
+        abort(400, "Invalid run ID")
+    finally:
+        session.close()
+
+
+@main.route('/admin/filter-runs/<run_id>/rejections/<filter_name>/export')
+def admin_rejection_export(run_id: str, filter_name: str):
+    """
+    Export rejected articles for a filter as CSV.
+    """
+    from flask import Response
+    import csv
+    from io import StringIO
+    
+    session = SessionLocal()
+    try:
+        run_uuid = UUID(run_id)
+        run = session.query(PipelineRun).filter(PipelineRun.id == run_uuid).first()
+        if not run:
+            abort(404)
+        
+        # Validate filter name
+        if filter_name not in ['news_check', 'wow_factor', 'values_fit']:
+            abort(400, "Invalid filter name")
+        
+        # Get all rejections for this filter
+        rejections = session.query(FilterTrace).filter(
+            FilterTrace.run_id == run_uuid,
+            FilterTrace.filter_name == filter_name,
+            FilterTrace.decision == 'reject'
+        ).order_by(FilterTrace.created_at).all()
+        
+        # Build CSV
+        output = StringIO()
+        writer = csv.writer(output)
+        writer.writerow(['Title', 'URL', 'Score', 'Reasoning'])
+        
+        for r in rejections:
+            writer.writerow([
+                r.article_title,
+                r.article_url,
+                f"{r.score:.2f}" if r.score is not None else "",
+                r.reasoning
+            ])
+        
+        output.seek(0)
+        
+        return Response(
+            output.getvalue(),
+            mimetype='text/csv',
+            headers={
+                'Content-Disposition': f'attachment; filename=rejections_{filter_name}_{run_id[:8]}.csv'
+            }
+        )
+    except ValueError:
+        abort(400, "Invalid run ID")
     finally:
         session.close()

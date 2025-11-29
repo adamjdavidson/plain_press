@@ -5,7 +5,7 @@
 **Status**: Draft  
 **Input**: User description: "$ARGUMENTS"
 
-**Constitution Check**: Ensure feature aligns with `.specify/memory/constitution.md` principles (especially Single-User Simplicity and Cost Discipline).
+**Constitution Check**: Ensure feature aligns with `.specify/memory/constitution.md` principles (especially Single-User Simplicity).
 
 ## User Scenarios & Testing *(mandatory)*
 

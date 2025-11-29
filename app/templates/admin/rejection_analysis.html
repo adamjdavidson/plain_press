@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rejection Analysis: {{ filter_name | replace('_', ' ') | title }} - Plain Press</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    h1 { margin: 0 0 10px; color: #2d5016; font-size: 20px; }
+    .nav-links {
+      margin-bottom: 20px;
+    }
+    .nav-links a {
+      color: #2d5016;
+      margin-right: 15px;
+    }
+
+    .summary {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      display: flex;
+      gap: 30px;
+      flex-wrap: wrap;
+    }
+    .summary-stat {
+      text-align: center;
+    }
+    .summary-stat .value {
+      font-size: 32px;
+      font-weight: 700;
+      color: #c62828;
+    }
+    .summary-stat .label {
+      font-size: 12px;
+      color: #666;
+    }
+
+    .actions {
+      margin-bottom: 20px;
+    }
+    .actions a {
+      display: inline-block;
+      padding: 8px 16px;
+      background: #2d5016;
+      color: white;
+      text-decoration: none;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+    .actions a:hover { background: #1e3a0f; }
+
+    .pattern-card {
+      background: white;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+    .pattern-header {
+      padding: 15px 20px;
+      background: #f8f9fa;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+    }
+    .pattern-header:hover { background: #f0f0f0; }
+    .pattern-reason {
+      font-size: 14px;
+      color: #333;
+      flex: 1;
+      margin-right: 15px;
+    }
+    .pattern-count {
+      background: #ffebee;
+      color: #c62828;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .pattern-percent {
+      font-size: 12px;
+      color: #666;
+      margin-left: 10px;
+    }
+
+    .pattern-examples {
+      display: none;
+      padding: 15px 20px;
+      border-top: 1px solid #eee;
+    }
+    .pattern-examples.visible { display: block; }
+    .pattern-examples h4 {
+      margin: 0 0 10px;
+      font-size: 12px;
+      color: #666;
+      text-transform: uppercase;
+    }
+
+    .example-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .example-list li {
+      padding: 8px 0;
+      border-bottom: 1px solid #f0f0f0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .example-list li:last-child { border-bottom: none; }
+    .example-title {
+      font-size: 13px;
+      color: #333;
+      max-width: 500px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .example-title a {
+      color: #333;
+      text-decoration: none;
+    }
+    .example-title a:hover { color: #2d5016; }
+    .example-score {
+      font-size: 12px;
+      color: #999;
+    }
+
+    .no-patterns {
+      text-align: center;
+      padding: 40px;
+      color: #666;
+      background: white;
+      border-radius: 8px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      padding: 10px 15px;
+      text-align: left;
+      border-bottom: 1px solid #eee;
+    }
+    th {
+      background: #f8f9fa;
+      font-weight: 500;
+      font-size: 12px;
+      color: #666;
+      text-transform: uppercase;
+    }
+  </style>
+</head>
+<body>
+  <h1>Rejection Analysis: {{ filter_name | replace('_', ' ') | title }}</h1>
+  <div class="nav-links">
+    <a href="/admin/filter-runs/{{ run.id }}">← Back to Run Details</a>
+    <a href="/admin/filter-runs">All Runs</a>
+  </div>
+
+  <div class="summary">
+    <div class="summary-stat">
+      <div class="value">{{ total_rejected }}</div>
+      <div class="label">Total Rejected</div>
+    </div>
+    <div class="summary-stat">
+      <div class="value">{{ patterns | length }}</div>
+      <div class="label">Unique Patterns</div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <a href="/admin/filter-runs/{{ run.id }}/rejections/{{ filter_name }}/export">↓ Export to CSV</a>
+  </div>
+
+  {% if patterns %}
+    {% for pattern in patterns %}
+    <div class="pattern-card">
+      <div class="pattern-header" onclick="toggleExamples(this)">
+        <div class="pattern-reason">{{ pattern.reason_summary }}</div>
+        <div>
+          <span class="pattern-count">{{ pattern.count }}</span>
+          <span class="pattern-percent">({{ "%.1f"|format(pattern.count / total_rejected * 100) }}%)</span>
+        </div>
+      </div>
+      <div class="pattern-examples">
+        <h4>Example Articles ({{ pattern.examples | length }})</h4>
+        <ul class="example-list">
+          {% for example in pattern.examples[:5] %}
+          <li>
+            <span class="example-title">
+              <a href="/admin/filter-runs/{{ run.id }}/article/{{ example.url | urlencode }}" title="{{ example.title }}">
+                {{ example.title[:70] }}{% if example.title|length > 70 %}...{% endif %}
+              </a>
+            </span>
+            {% if example.score is not none %}
+            <span class="example-score">Score: {{ "%.2f"|format(example.score) }}</span>
+            {% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+    {% endfor %}
+  {% else %}
+  <div class="no-patterns">
+    <p>No rejections found for this filter.</p>
+  </div>
+  {% endif %}
+
+  <script>
+    function toggleExamples(header) {
+      const examples = header.nextElementSibling;
+      examples.classList.toggle('visible');
+    }
+  </script>
+</body>
+</html>
+
