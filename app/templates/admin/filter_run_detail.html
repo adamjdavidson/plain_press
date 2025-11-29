@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pipeline Run {{ run.id[:8] }} - Plain Press</title>
+  <title>Pipeline Run {{ run.id|string|truncate(8, True, '') }} - Plain Press</title>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -200,7 +200,7 @@
   </div>
 
   <div class="run-info">
-    <span>Run ID: <strong>{{ run.id[:8] }}...</strong></span>
+    <span>Run ID: <strong>{{ run.id|string|truncate(12, True, '...') }}</strong></span>
     <span>Started: <strong>{{ run.started_at.strftime('%b %d, %Y %H:%M:%S') }}</strong></span>
     {% if run.completed_at %}
     <span>Completed: <strong>{{ run.completed_at.strftime('%H:%M:%S') }}</strong></span>
