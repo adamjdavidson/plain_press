@@ -316,7 +316,7 @@
         <tbody>
           {% for trace in traces.news_check if trace.decision == 'reject' %}
           <tr>
-            <td><a class="article-link" href="/admin/filter-runs/{{ run.id }}/article/{{ trace.article_url | urlencode }}" title="{{ trace.article_title }}">{{ trace.article_title[:60] }}{% if trace.article_title|length > 60 %}...{% endif %}</a></td>
+            <td><a class="article-link" href="{{ trace.article_url }}" target="_blank" title="{{ trace.article_title }}">{{ trace.article_title[:60] }}{% if trace.article_title|length > 60 %}...{% endif %}</a></td>
             <td><span class="decision decision-reject">{{ trace.reasoning.split(':')[0] if ':' in trace.reasoning else 'non-news' }}</span></td>
             <td class="reasoning" title="{{ trace.reasoning }}">{{ trace.reasoning }}</td>
             <td>
@@ -383,7 +383,7 @@
         <tbody>
           {% for trace in traces.wow_factor if trace.decision == 'reject' %}
           <tr>
-            <td><a class="article-link" href="/admin/filter-runs/{{ run.id }}/article/{{ trace.article_url | urlencode }}" title="{{ trace.article_title }}">{{ trace.article_title[:60] }}{% if trace.article_title|length > 60 %}...{% endif %}</a></td>
+            <td><a class="article-link" href="{{ trace.article_url }}" target="_blank" title="{{ trace.article_title }}">{{ trace.article_title[:60] }}{% if trace.article_title|length > 60 %}...{% endif %}</a></td>
             <td><span class="score score-low">{{ "%.2f"|format(trace.score or 0) }}</span></td>
             <td class="reasoning" title="{{ trace.reasoning }}">{{ trace.reasoning }}</td>
             <td>
@@ -450,7 +450,7 @@
         <tbody>
           {% for trace in traces.values_fit if trace.decision == 'reject' %}
           <tr>
-            <td><a class="article-link" href="/admin/filter-runs/{{ run.id }}/article/{{ trace.article_url | urlencode }}" title="{{ trace.article_title }}">{{ trace.article_title[:60] }}{% if trace.article_title|length > 60 %}...{% endif %}</a></td>
+            <td><a class="article-link" href="{{ trace.article_url }}" target="_blank" title="{{ trace.article_title }}">{{ trace.article_title[:60] }}{% if trace.article_title|length > 60 %}...{% endif %}</a></td>
             <td><span class="score score-low">{{ "%.2f"|format(trace.score or 0) }}</span></td>
             <td class="reasoning" title="{{ trace.reasoning }}">{{ trace.reasoning }}</td>
             <td>

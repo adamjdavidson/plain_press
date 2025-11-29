@@ -256,9 +256,10 @@
           {% for example in pattern.examples[:5] %}
           <li>
             <span class="example-title">
-              <a href="/admin/filter-runs/{{ run.id }}/article/{{ example.url | urlencode }}" title="{{ example.title }}">
+              <a href="{{ example.url }}" target="_blank" title="{{ example.title }}">
                 {{ example.title[:70] }}{% if example.title|length > 70 %}...{% endif %}
               </a>
+              <a href="/admin/filter-runs/{{ run.id }}/article/{{ example.url | urlencode }}" style="font-size: 11px; margin-left: 8px; color: #666;">details</a>
             </span>
             <span>
               {% if example.score is not none %}
