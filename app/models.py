@@ -76,6 +76,14 @@ class PipelineRunStatus(enum.Enum):
     FAILED = "failed"
 
 
+class FilterStatus(enum.Enum):
+    """Article filter processing status for background worker"""
+    UNFILTERED = "unfiltered"  # New, needs processing
+    FILTERING = "filtering"    # Currently being processed (prevents duplicate work)
+    PASSED = "passed"          # Passed all filters
+    REJECTED = "rejected"      # Failed a filter
+
+
 # ============================================================================
 # Entity Models
 # ============================================================================
@@ -123,6 +131,16 @@ class Article(Base):
         SAEnum(ArticleStatus, native_enum=True, name="article_status"),
         nullable=False,
         default=ArticleStatus.PENDING
+    )
+    filter_status: Mapped[FilterStatus] = Column(
+        SAEnum(
+            FilterStatus,
+            values_callable=lambda e: [x.value for x in e],
+            native_enum=True,
+            name="filter_status"
+        ),
+        nullable=False,
+        default=FilterStatus.UNFILTERED
     )
     
     # Google Integration (for approved articles)
@@ -179,6 +197,7 @@ class Article(Base):
         Index("ix_articles_source_id", "source_id"),
         Index("ix_articles_is_published", "is_published"),
         Index("ix_articles_is_rejected", "is_rejected"),
+        Index("ix_articles_filter_status", "filter_status"),
     )
 
 
