@@ -36,6 +36,9 @@ def _log_progress(msg: str, start_time: float = None):
 import os
 USE_MULTI_STAGE_FILTER = os.environ.get("USE_MULTI_STAGE_FILTER", "false").lower() == "true"
 
+# Limit articles per run to avoid timeout (default 100 = ~30 min with 3 filters)
+FILTER_BATCH_LIMIT = int(os.environ.get("FILTER_BATCH_LIMIT", "100"))
+
 
 # Delay imports to track where hangs occur
 def _import_dependencies(start_time: float):
@@ -151,6 +154,13 @@ def run_discovery_job() -> dict:
         unique_articles, duplicates = deduplicate_articles(all_articles)
         stats['duplicates_removed'] = duplicates
         _log_progress(f"Step 3: Dedup complete - {len(unique_articles)} unique from {len(all_articles)} total", job_start)
+
+        # Apply batch limit to avoid timeout
+        if len(unique_articles) > FILTER_BATCH_LIMIT:
+            _log_progress(f"Step 3b: Limiting to {FILTER_BATCH_LIMIT} articles (had {len(unique_articles)})", job_start)
+            unique_articles = unique_articles[:FILTER_BATCH_LIMIT]
+            stats['batch_limited'] = True
+            stats['batch_limit'] = FILTER_BATCH_LIMIT
 
         if not unique_articles:
             _log_progress("Step 3: No articles to filter - ending early", job_start)
