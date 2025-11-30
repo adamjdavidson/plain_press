@@ -26,6 +26,8 @@ logging.basicConfig(
         logging.StreamHandler(sys.stdout)
     ]
 )
+# Silence verbose SQLAlchemy logging (prevents Railway rate limit issues)
+logging.getLogger('sqlalchemy.engine').setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 

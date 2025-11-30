@@ -29,6 +29,8 @@ from app.database import SessionLocal
 from app.models import Source, SourceType, FilterRule, RuleType, RuleSource
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# Silence verbose SQLAlchemy logging (prevents Railway rate limit issues)
+logging.getLogger('sqlalchemy.engine').setLevel(logging.WARNING)
 logger = logging.getLogger('seed_data')
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data')

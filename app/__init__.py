@@ -1,9 +1,13 @@
 """
 Plain Press Finder Flask Application Factory
 """
+import logging
 import os
 from flask import Flask
 from dotenv import load_dotenv
+
+# Silence verbose SQLAlchemy logging (prevents Railway rate limit issues)
+logging.getLogger('sqlalchemy.engine').setLevel(logging.WARNING)
 
 
 def create_app(config=None):
